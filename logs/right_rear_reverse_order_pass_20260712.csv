@@ -1,0 +1,10 @@
+# actual_behavior: RR forward then reverse; both directions moved
+# electrical_order: PC6 high first, PE9 high second; both IDR values follow ODR
+seq,time_ms,event,wheel,cmd,pe_odr,pc_odr,pe_idr,pc_idr,tim5_ccr1,tim5_ccr2,tim3_ccr1,tim3_ccr2
+0,0,2,255,0,0x0000,0x0000,0x007F,0x3FBF,0,0,0,0
+1,0,1,255,0,0x0000,0x0000,0x007F,0x3FBF,0,0,0,0
+2,1000,3,3,-60,0x0000,0x0040,0x007F,0x3FFF,0,0,0,2160
+3,3000,4,3,0,0x0000,0x0000,0x007F,0x3FBF,0,0,0,0
+4,4000,3,3,60,0x0200,0x0000,0x027F,0x3FBF,0,0,0,2160
+5,6000,4,3,0,0x0000,0x0000,0x007F,0x3FBF,0,0,0,0
+6,7000,1,255,0,0x0000,0x0000,0x007F,0x3FBF,0,0,0,0

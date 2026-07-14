@@ -1,0 +1,98 @@
+{
+    "version": 3,
+    "configurePresets": [
+        {
+            "name": "default",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "toolchainFile": "${sourceDir}/cmake/gnu-tools-for-stm32.cmake",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+
+                "CMSIS_Dvendor": "STMicroelectronics:13",
+                "CMSIS_Dname": "STM32F103ZET6",
+                "CMSIS_Dcore": "Cortex-M3",
+                "CMSIS_Dtz": "NO_TZ",
+                "CMSIS_Dfpu": "NO_FPU",
+                "CMSIS_Ddsp": "NO_DSP",
+                "CMSIS_Dmve": "NO_MVE",
+                "CMSIS_Dmpu": "MPU",
+                "CMSIS_Dendian": "Little-endian",
+                "CMSIS_Dsecure": "",
+                "CMSIS_Tcompiler": "GCC"
+            }
+        },
+        {
+            "name": "Debug",
+            "inherits": "default",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "Release",
+            "inherits": "default",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "BluetoothMotorDebug",
+            "inherits": "default",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "LIDAR_CAR_MAIN_SOURCE": "${sourceDir}/Src/main_bluetooth_mecanum_test.c",
+                "BLUETOOTH_MOTOR_OUTPUT_ENABLE_VALUE": "0",
+                "BLUETOOTH_BAUDRATE_VALUE": "9600"
+            }
+        },
+        {
+            "name": "BluetoothMotor115200Debug",
+            "inherits": "default",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "LIDAR_CAR_MAIN_SOURCE": "${sourceDir}/Src/main_bluetooth_mecanum_test.c",
+                "BLUETOOTH_MOTOR_OUTPUT_ENABLE_VALUE": "0",
+                "BLUETOOTH_BAUDRATE_VALUE": "115200"
+            }
+        },
+        {
+            "name": "BluetoothMotorDriveDebug",
+            "inherits": "default",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "LIDAR_CAR_MAIN_SOURCE": "${sourceDir}/Src/main_bluetooth_mecanum_test.c",
+                "BLUETOOTH_MOTOR_OUTPUT_ENABLE_VALUE": "1",
+                "BLUETOOTH_BAUDRATE_VALUE": "9600"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "default",
+            "hidden": true,
+            "configurePreset": "default"
+        },
+                {
+            "name": "Debug",
+            "configurePreset": "Debug"
+        },
+        {
+            "name": "Release",
+            "configurePreset": "Release"
+        },
+        {
+            "name": "BluetoothMotorDebug",
+            "configurePreset": "BluetoothMotorDebug"
+        },
+        {
+            "name": "BluetoothMotor115200Debug",
+            "configurePreset": "BluetoothMotor115200Debug"
+        },
+        {
+            "name": "BluetoothMotorDriveDebug",
+            "configurePreset": "BluetoothMotorDriveDebug"
+        }
+    ]
+}

@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "updated_at": "2026-07-12T00:00:00+08:00",
+  "cards": [
+    {
+      "id": "l298n_test_stage",
+      "symbol": "g_l298nTestStage",
+      "type": "state field",
+      "unit": "L298N_TestStage_t enum",
+      "update_source": "L298N_RunDirectionTestLoop and L298N_RunOneStage",
+      "update_timing": "Set before every approximately 2-second wheel direction stage",
+      "consumers": ["debugger Watch", "human wheel-direction observer"],
+      "failure_symptom": "If stage identity is not observed, a wheel movement can be attributed to the wrong software direction.",
+      "confirmed_fact": "RR_FORWARD produces actual backward rotation and RR_REVERSE produces actual forward rotation.",
+      "misconception_to_avoid": "Do not infer both directions for LF, RF, or LR from a single observed movement.",
+      "mastery": "partial",
+      "next_review": "Next physical test cycle"
+    }
+  ]
+}

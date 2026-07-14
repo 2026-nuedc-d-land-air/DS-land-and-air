@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "updated_at": "2026-07-12T00:00:00+08:00",
+  "scope": "F:/keil5/stm/ZET6 HAl/lidar_car",
+  "current_task": "Calibrate physical wheel direction against the staged L298N PWM test",
+  "known_good": {
+    "replacement_driver_installed": true,
+    "all_four_motors_can_move": true,
+    "test_sequence": [
+      "LF_FORWARD",
+      "LF_REVERSE",
+      "RF_FORWARD",
+      "RF_REVERSE",
+      "LR_FORWARD",
+      "LR_REVERSE",
+      "RR_FORWARD",
+      "RR_REVERSE"
+    ],
+    "test_timing": {
+      "forward_ms": 2000,
+      "same_wheel_direction_pause_ms": 1000,
+      "reverse_ms": 2000,
+      "wheel_switch_pause_ms": 3000
+    },
+    "debug_build_passed": true,
+    "release_build_passed": true,
+    "release_rebuilt_at": "2026-07-12T14:56:22+08:00",
+    "flash_performed_for_latest_build": false
+  },
+  "direction_evidence": {
+    "LF": {
+      "observed": "backward",
+      "mapping_status": "partial"
+    },
+    "RF": {
+      "observed": "backward",
+      "mapping_status": "partial"
+    },
+    "LR": {
+      "observed": "forward",
+      "mapping_status": "partial"
+    },
+    "RR": {
+      "software_forward_actual": "backward",
+      "software_reverse_actual": "forward",
+      "mapping_status": "confirmed",
+      "requires_direction_inversion": true
+    }
+  },
+  "next_action": "User manually flashes the latest Debug HEX, then reports forward and reverse results for LF, RF, LR, and RR in order.",
+  "checkpoint_decision": "AS state recorded now; defer Git checkpoint until the full four-wheel direction table is confirmed because this target directory is currently untracked in the parent repository."
+}
