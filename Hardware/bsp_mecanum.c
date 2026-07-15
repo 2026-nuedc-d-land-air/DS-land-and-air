@@ -1,7 +1,21 @@
 #include "bsp_mecanum.h"
 
 #define MECANUM_PWM_PERIOD 3600U
-#define MECANUM_SOFT_PWM_PERIOD_MS 10U
+#define MECANUM_SOFT_PWM_PERIOD_MS 20U
+
+/*
+ * The front wheels need higher startup duty under the assembled-car load;
+ * the rear wheels are reduced for balance. Keep zero as zero so every stop
+ * path remains an immediate stop.
+ */
+#define MECANUM_LF_PWM_GAIN_NUMERATOR  3U
+#define MECANUM_LF_PWM_GAIN_DENOMINATOR 2U
+#define MECANUM_LF_PWM_MIN_PERCENT      24U
+#define MECANUM_RF_PWM_GAIN_NUMERATOR  3U
+#define MECANUM_RF_PWM_GAIN_DENOMINATOR 2U
+#define MECANUM_RF_PWM_MIN_PERCENT      24U
+#define MECANUM_REAR_PWM_GAIN_NUMERATOR  3U
+#define MECANUM_REAR_PWM_GAIN_DENOMINATOR 4U
 
 static uint8_t s_mecanumEnabled = 0U;
 static uint8_t s_rearLeftDuty = 0U;
@@ -22,6 +36,60 @@ static uint16_t Mecanum_SpeedToCompare(int16_t speedPercent)
 
     magnitude = (uint16_t)((speedPercent < 0) ? -speedPercent : speedPercent);
     return (uint16_t)(((uint32_t)magnitude * MECANUM_PWM_PERIOD) / 100U);
+}
+
+static int16_t Mecanum_ApplyWheelPwmCompensation(MecanumWheel_t wheel,
+                                                   int16_t speedPercent)
+{
+    int16_t sign;
+    uint16_t magnitude;
+    uint16_t gainNumerator;
+    uint16_t gainDenominator;
+    uint16_t minimumPercent;
+
+    if (speedPercent == 0)
+    {
+        return speedPercent;
+    }
+
+    if (wheel == MECANUM_WHEEL_LF)
+    {
+        gainNumerator = MECANUM_LF_PWM_GAIN_NUMERATOR;
+        gainDenominator = MECANUM_LF_PWM_GAIN_DENOMINATOR;
+        minimumPercent = MECANUM_LF_PWM_MIN_PERCENT;
+    }
+    else if (wheel == MECANUM_WHEEL_RF)
+    {
+        gainNumerator = MECANUM_RF_PWM_GAIN_NUMERATOR;
+        gainDenominator = MECANUM_RF_PWM_GAIN_DENOMINATOR;
+        minimumPercent = MECANUM_RF_PWM_MIN_PERCENT;
+    }
+    else if ((wheel == MECANUM_WHEEL_LR) ||
+             (wheel == MECANUM_WHEEL_RR))
+    {
+        gainNumerator = MECANUM_REAR_PWM_GAIN_NUMERATOR;
+        gainDenominator = MECANUM_REAR_PWM_GAIN_DENOMINATOR;
+        minimumPercent = 0U;
+    }
+    else
+    {
+        return speedPercent;
+    }
+
+    sign = (speedPercent < 0) ? -1 : 1;
+    magnitude = (uint16_t)((speedPercent < 0) ? -speedPercent : speedPercent);
+    magnitude = (uint16_t)(((uint32_t)magnitude * gainNumerator) /
+                           gainDenominator);
+    if ((minimumPercent != 0U) && (magnitude < minimumPercent))
+    {
+        magnitude = minimumPercent;
+    }
+    if (magnitude > 100U)
+    {
+        magnitude = 100U;
+    }
+
+    return (int16_t)(sign * (int16_t)magnitude);
 }
 
 static void Mecanum_InitTimer(TIM_TypeDef *timer,
@@ -92,14 +160,14 @@ static void Mecanum_SetDirection(MecanumWheel_t wheel, int16_t speedPercent)
         case MECANUM_WHEEL_LF:
             if (speedPercent > 0)
             {
-                /* Current physical forward: PE2=1, PE3=0. */
-                GPIO_SetBits(GPIOE, GPIO_Pin_2);
-                GPIO_ResetBits(GPIOE, GPIO_Pin_3);
+                /* Verified physical forward: PE2=0, PE3=1. */
+                GPIO_ResetBits(GPIOE, GPIO_Pin_2);
+                GPIO_SetBits(GPIOE, GPIO_Pin_3);
             }
             else
             {
-                GPIO_ResetBits(GPIOE, GPIO_Pin_2);
-                GPIO_SetBits(GPIOE, GPIO_Pin_3);
+                GPIO_SetBits(GPIOE, GPIO_Pin_2);
+                GPIO_ResetBits(GPIOE, GPIO_Pin_3);
             }
             break;
 
@@ -241,6 +309,19 @@ void Mecanum_SetWheel(MecanumWheel_t wheel, int16_t speedPercent)
         return;
     }
 
+    speedPercent = Mecanum_ApplyWheelPwmCompensation(wheel, speedPercent);
+    Mecanum_SetDirection(wheel, speedPercent);
+    Mecanum_SetCompare(wheel, Mecanum_SpeedToCompare(speedPercent));
+}
+
+void Mecanum_SetWheelRaw(MecanumWheel_t wheel, int16_t speedPercent)
+{
+    if (wheel > MECANUM_WHEEL_RR)
+    {
+        return;
+    }
+
+    /* Calibration must measure the requested duty, not the normal trim. */
     Mecanum_SetDirection(wheel, speedPercent);
     Mecanum_SetCompare(wheel, Mecanum_SpeedToCompare(speedPercent));
 }
@@ -265,7 +346,8 @@ void Mecanum_Update(uint32_t nowMs)
 
     phase = (uint8_t)(nowMs % MECANUM_SOFT_PWM_PERIOD_MS);
 
-    if ((uint16_t)phase * 10U < s_rearLeftDuty)
+    /* 20 ms period gives rear GPIO PWM 5% resolution for low-duty sweeps. */
+    if ((uint16_t)phase * 5U < s_rearLeftDuty)
     {
         GPIO_SetBits(GPIOA, GPIO_Pin_6);
     }
@@ -274,7 +356,7 @@ void Mecanum_Update(uint32_t nowMs)
         GPIO_ResetBits(GPIOA, GPIO_Pin_6);
     }
 
-    if ((uint16_t)phase * 10U < s_rearRightDuty)
+    if ((uint16_t)phase * 5U < s_rearRightDuty)
     {
         GPIO_SetBits(GPIOA, GPIO_Pin_7);
     }

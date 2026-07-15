@@ -14,6 +14,8 @@ typedef enum
 void Mecanum_InitOff(void);
 void Mecanum_Enable(uint8_t enable);
 void Mecanum_SetWheel(MecanumWheel_t wheel, int16_t speedPercent);
+/* Direct duty command for calibration; deliberately bypasses per-wheel trim. */
+void Mecanum_SetWheelRaw(MecanumWheel_t wheel, int16_t speedPercent);
 void Mecanum_StopAll(void);
 void Mecanum_Update(uint32_t nowMs);
 

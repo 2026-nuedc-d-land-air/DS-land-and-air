@@ -15,5 +15,7 @@ extern volatile uint8_t g_bluetoothRxHistoryWriteIndex;
 void BluetoothMotorTest_Init(uint32_t nowMs);
 void BluetoothMotorTest_HandleByte(char source, uint8_t byte, uint32_t nowMs);
 void BluetoothMotorTest_Update(uint32_t nowMs);
+uint8_t BluetoothMotorTest_IsMotionActive(void);
+uint8_t BluetoothMotorTest_GetActiveCommand(void);
 
 #endif /* __APP_BLUETOOTH_MOTOR_TEST_H */

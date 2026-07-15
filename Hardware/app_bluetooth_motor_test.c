@@ -4,9 +4,16 @@
 #include "bsp_mecanum.h"
 #include "bsp_robot_uart.h"
 
-#define MOTOR_TEST_SPEED_PERCENT 18
-#define MOTOR_TURN_SLOW_PERCENT  8
-#define MOTOR_COMMAND_TIMEOUT_MS 800U
+#define MOTOR_TEST_SPEED_PERCENT 14
+#define MOTOR_LEFT_PWM_BIAS_PERCENT 5
+#define MOTOR_TURN_RIGHT_SPEED_PERCENT 8
+/*
+ * Every drive key starts one short, measured movement pulse.  A held key is
+ * retransmitted by the Bluetooth app; repeated bytes start a later pulse only
+ * after this pulse and its small stop gap have completed.
+ */
+#define MOTOR_COMMAND_PULSE_MS       285U
+#define MOTOR_COMMAND_INTERPULSE_MS   80U
 #define BLUETOOTH_SEND_ACK_ENABLE 0U
 
 #ifndef BLUETOOTH_MOTOR_OUTPUT_ENABLE
@@ -15,8 +22,11 @@
 
 static uint32_t s_lastMotionCommandMs = 0U;
 static uint32_t s_lastStatMs = 0U;
+static uint32_t s_motionDeadlineMs = 0U;
+static uint32_t s_nextSameMotionMs = 0U;
 static uint8_t s_motionActive = 0U;
-static uint8_t s_controlArmed = 0U;
+static uint8_t s_activeMotionCommand = 0U;
+static uint8_t s_lastMotionCommand = 0U;
 
 volatile uint32_t g_bluetoothRxCount = 0U;
 volatile uint32_t g_bluetoothRxLastMs = 0U;
@@ -149,6 +159,7 @@ static void BluetoothMotorTest_Stop(uint32_t nowMs, const char *reason)
 {
     Mecanum_Enable(0U);
     s_motionActive = 0U;
+    s_activeMotionCommand = 0U;
     DiagUart_WriteString("MOTOR_STOP,");
     DiagUart_WriteUInt32(nowMs);
     DiagUart_WriteChar(',');
@@ -173,13 +184,48 @@ static void BluetoothMotorTest_SetMotion(uint32_t nowMs,
         Mecanum_SetWheel(MECANUM_WHEEL_LR, lr);
         Mecanum_SetWheel(MECANUM_WHEEL_RR, rr);
         s_lastMotionCommandMs = nowMs;
+        s_motionDeadlineMs = nowMs + MOTOR_COMMAND_PULSE_MS;
         s_motionActive = 1U;
+        s_activeMotionCommand = command;
+        s_lastMotionCommand = command;
     }
     else
     {
         Mecanum_Enable(0U);
         s_motionActive = 0U;
+        s_activeMotionCommand = 0U;
     }
+}
+
+static uint8_t BluetoothMotorTest_CanStartMotion(uint32_t nowMs,
+                                                  uint8_t command)
+{
+    if (s_motionActive != 0U)
+    {
+        if ((int32_t)(nowMs - s_motionDeadlineMs) >= 0)
+        {
+            BluetoothMotorTest_Stop(nowMs, "PULSE_COMPLETE");
+            s_nextSameMotionMs = nowMs + MOTOR_COMMAND_INTERPULSE_MS;
+        }
+        else if (command == s_activeMotionCommand)
+        {
+            /* Do not extend a pulse for each byte produced by a held key. */
+            return 0U;
+        }
+        else
+        {
+            /* A different direction remains an immediate operator override. */
+            return 1U;
+        }
+    }
+
+    if ((command == s_lastMotionCommand) &&
+        ((int32_t)(nowMs - s_nextSameMotionMs) < 0))
+    {
+        return 0U;
+    }
+
+    return 1U;
 }
 
 void BluetoothMotorTest_Init(uint32_t nowMs)
@@ -188,8 +234,11 @@ void BluetoothMotorTest_Init(uint32_t nowMs)
 
     s_lastMotionCommandMs = nowMs;
     s_lastStatMs = nowMs;
+    s_motionDeadlineMs = nowMs;
+    s_nextSameMotionMs = nowMs;
     s_motionActive = 0U;
-    s_controlArmed = 0U;
+    s_activeMotionCommand = 0U;
+    s_lastMotionCommand = 0U;
     g_bluetoothRxCount = 0U;
     g_bluetoothRxLastMs = 0U;
     g_bluetoothRxLastByte = 0U;
@@ -205,9 +254,9 @@ void BluetoothMotorTest_Init(uint32_t nowMs)
         "BT_MOTOR_READY output_enabled=");
     DiagUart_WriteUInt32(BLUETOOTH_MOTOR_OUTPUT_ENABLE);
     DiagUart_WriteString(
-        " speed=18 turn_slow=8 timeout_ms=800 armed=0 "
+        " drive_right_pwm=14 turn_right_pwm=8 left_bias_pwm=5 pulse_ms=285 inter_pulse_ms=80 "
         "F=forward B=back L=left R=right Q=rotate_left "
-        "E=rotate_right S/0=stop\r\n");
+        "E=rotate_right I/S/0=stop\r\n");
 }
 
 void BluetoothMotorTest_HandleByte(char source,
@@ -216,6 +265,11 @@ void BluetoothMotorTest_HandleByte(char source,
 {
     uint8_t command;
     int16_t speed = MOTOR_TEST_SPEED_PERCENT;
+    int16_t leftSpeed = MOTOR_TEST_SPEED_PERCENT +
+                        MOTOR_LEFT_PWM_BIAS_PERCENT;
+    int16_t turnRightSpeed = MOTOR_TURN_RIGHT_SPEED_PERCENT;
+    int16_t turnLeftSpeed = MOTOR_TURN_RIGHT_SPEED_PERCENT +
+                            MOTOR_LEFT_PWM_BIAS_PERCENT;
 
     BluetoothMotorTest_RecordByte(byte, nowMs);
 
@@ -233,16 +287,10 @@ void BluetoothMotorTest_HandleByte(char source,
         (command == (uint8_t)'S') ||
         (command == (uint8_t)'0'))
     {
-        s_controlArmed = 1U;
-        BluetoothMotorTest_Stop(nowMs, "COMMAND_ARMED");
+        /* The Bluetooth app's OK key is a stop only; it never arms motors. */
+        BluetoothMotorTest_Stop(nowMs, "COMMAND_STOP");
+        s_nextSameMotionMs = nowMs;
         BluetoothMotorTest_SendAck(source, 1U, command);
-        return;
-    }
-
-    if (s_controlArmed == 0U)
-    {
-        BluetoothMotorTest_Stop(nowMs, "DISARMED_PRESS_OK");
-        BluetoothMotorTest_SendAck(source, 0U, command);
         return;
     }
 
@@ -250,38 +298,60 @@ void BluetoothMotorTest_HandleByte(char source,
     {
         case 'G':
         case 'F':
-            BluetoothMotorTest_SetMotion(nowMs, command,
-                                         speed, speed, speed, speed);
+            if (BluetoothMotorTest_CanStartMotion(nowMs, command) != 0U)
+            {
+                BluetoothMotorTest_SetMotion(nowMs, command,
+                                             leftSpeed, speed,
+                                             leftSpeed, speed);
+            }
             break;
 
         case 'K':
         case 'B':
-            BluetoothMotorTest_SetMotion(nowMs, command,
-                                         -speed, -speed, -speed, -speed);
+            if (BluetoothMotorTest_CanStartMotion(nowMs, command) != 0U)
+            {
+                BluetoothMotorTest_SetMotion(nowMs, command,
+                                             -leftSpeed, -speed,
+                                             -leftSpeed, -speed);
+            }
             break;
 
         case 'H':
         case 'L':
-            BluetoothMotorTest_SetMotion(nowMs, command,
-                                         MOTOR_TURN_SLOW_PERCENT, speed,
-                                         MOTOR_TURN_SLOW_PERCENT, speed);
+            if (BluetoothMotorTest_CanStartMotion(nowMs, command) != 0U)
+            {
+                BluetoothMotorTest_SetMotion(nowMs, command,
+                                             -turnLeftSpeed, turnRightSpeed,
+                                             -turnLeftSpeed, turnRightSpeed);
+            }
             break;
 
         case 'J':
         case 'R':
-            BluetoothMotorTest_SetMotion(nowMs, command,
-                                         speed, MOTOR_TURN_SLOW_PERCENT,
-                                         speed, MOTOR_TURN_SLOW_PERCENT);
+            if (BluetoothMotorTest_CanStartMotion(nowMs, command) != 0U)
+            {
+                BluetoothMotorTest_SetMotion(nowMs, command,
+                                             turnLeftSpeed, -turnRightSpeed,
+                                             turnLeftSpeed, -turnRightSpeed);
+            }
             break;
 
         case 'Q':
-            BluetoothMotorTest_SetMotion(nowMs, command,
-                                         -speed, speed, -speed, speed);
+            if (BluetoothMotorTest_CanStartMotion(nowMs, command) != 0U)
+            {
+                BluetoothMotorTest_SetMotion(nowMs, command,
+                                             -turnLeftSpeed, turnRightSpeed,
+                                             -turnLeftSpeed, turnRightSpeed);
+            }
             break;
 
         case 'E':
-            BluetoothMotorTest_SetMotion(nowMs, command,
-                                         speed, -speed, speed, -speed);
+            if (BluetoothMotorTest_CanStartMotion(nowMs, command) != 0U)
+            {
+                BluetoothMotorTest_SetMotion(nowMs, command,
+                                             turnLeftSpeed, -turnRightSpeed,
+                                             turnLeftSpeed, -turnRightSpeed);
+            }
             break;
 
         default:
@@ -296,9 +366,10 @@ void BluetoothMotorTest_HandleByte(char source,
 void BluetoothMotorTest_Update(uint32_t nowMs)
 {
     if ((s_motionActive != 0U) &&
-        ((uint32_t)(nowMs - s_lastMotionCommandMs) >= MOTOR_COMMAND_TIMEOUT_MS))
+        ((int32_t)(nowMs - s_motionDeadlineMs) >= 0))
     {
-        BluetoothMotorTest_Stop(nowMs, "TIMEOUT");
+        BluetoothMotorTest_Stop(nowMs, "PULSE_COMPLETE");
+        s_nextSameMotionMs = nowMs + MOTOR_COMMAND_INTERPULSE_MS;
     }
 
     if ((uint32_t)(nowMs - s_lastStatMs) >= 1000U)
@@ -316,8 +387,20 @@ void BluetoothMotorTest_Update(uint32_t nowMs)
         DiagUart_WriteUInt32(g_bluetoothRxHistoryCount);
         DiagUart_WriteString(",output_enabled=");
         DiagUart_WriteUInt32(BLUETOOTH_MOTOR_OUTPUT_ENABLE);
-        DiagUart_WriteString(",armed=");
-        DiagUart_WriteUInt32(s_controlArmed);
+        DiagUart_WriteString(",motion_active=");
+        DiagUart_WriteUInt32(s_motionActive);
+        DiagUart_WriteString(",active_command=0x");
+        BluetoothMotorTest_WriteHexByte(s_activeMotionCommand);
         DiagUart_WriteString("\r\n");
     }
+}
+
+uint8_t BluetoothMotorTest_IsMotionActive(void)
+{
+    return s_motionActive;
+}
+
+uint8_t BluetoothMotorTest_GetActiveCommand(void)
+{
+    return s_activeMotionCommand;
 }

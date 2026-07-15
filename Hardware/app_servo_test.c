@@ -32,7 +32,8 @@ static const ServoPose_t s_poses[SERVO_POSE_COUNT] =
     {"GRAB",    {1550U, 1450U, 1020U, 1450U,  846U, 1485U}},
     {"OPEN",    {1650U, 1450U, 1020U, 1550U,  846U, 1485U}},
     {"LIFT",    {1520U, 1720U, 1020U, 1400U, 1100U, 1485U}},
-    {"LOWER",   {1520U, 1700U, 1020U, 1400U, 1100U, 1485U}},
+    /* Lower S1 a further 20 units versus the verified lower pose. */
+    {"LOWER",   {1520U, 1680U, 1020U, 1400U, 1100U, 1485U}},
     {"STACK",   {1560U, 1700U, 1020U, 1450U, 1100U, 1485U}}
 };
 
@@ -198,6 +199,25 @@ static void ServoTest_PrintHelp(void)
         "D/4=lower K/5=stack S=stop R=release Q=query H=help\r\n");
 }
 
+static uint8_t ServoTest_CommandToPoseIndex(uint8_t command,
+                                            ServoPoseIndex_t *poseIndex)
+{
+    command = ServoTest_NormalizeCommand(command);
+
+    switch (command)
+    {
+        case 'I': case '0': *poseIndex = SERVO_POSE_INITIAL; break;
+        case 'G': case '1': *poseIndex = SERVO_POSE_GRAB; break;
+        case 'O': case '2': *poseIndex = SERVO_POSE_OPEN; break;
+        case 'U': case '3': *poseIndex = SERVO_POSE_LIFT; break;
+        case 'D': case '4': *poseIndex = SERVO_POSE_LOWER; break;
+        case 'K': case '5': *poseIndex = SERVO_POSE_STACK; break;
+        default: return 0U;
+    }
+
+    return 1U;
+}
+
 void ServoTest_Init(void)
 {
     DiagUart_WriteString("servo_test.ready automatic_motion=0 move_ms=");
@@ -211,9 +231,38 @@ void ServoTest_StopAll(void)
     ServoTest_SendSimpleToAll("STOP", "DST");
 }
 
+uint8_t ServoTest_IsActionCommand(uint8_t command)
+{
+    ServoPoseIndex_t poseIndex;
+
+    return ServoTest_CommandToPoseIndex(command, &poseIndex);
+}
+
+const char *ServoTest_GetActionName(uint8_t command)
+{
+    ServoPoseIndex_t poseIndex;
+
+    if (ServoTest_CommandToPoseIndex(command, &poseIndex) == 0U)
+    {
+        return "UNKNOWN";
+    }
+    return s_poses[poseIndex].name;
+}
+
+uint32_t ServoTest_GetMoveTimeMs(void)
+{
+    return SERVO_MOVE_TIME_MS;
+}
+
+uint32_t ServoTest_GetFrameGapMs(void)
+{
+    return SERVO_FRAME_GAP_MS;
+}
+
 void ServoTest_HandleCommand(char source, uint8_t command)
 {
     uint8_t accepted = 1U;
+    ServoPoseIndex_t poseIndex;
 
     if ((command == (uint8_t)'\r') || (command == (uint8_t)'\n') ||
         (command == (uint8_t)' '))
@@ -233,26 +282,27 @@ void ServoTest_HandleCommand(char source, uint8_t command)
     DiagUart_WriteChar((char)command);
     DiagUart_WriteString("\r\n");
 
-    switch (command)
+    if (ServoTest_CommandToPoseIndex(command, &poseIndex) != 0U)
     {
-        case 'I': case '0': ServoTest_SendPose(SERVO_POSE_INITIAL); break;
-        case 'G': case '1': ServoTest_SendPose(SERVO_POSE_GRAB); break;
-        case 'O': case '2': ServoTest_SendPose(SERVO_POSE_OPEN); break;
-        case 'U': case '3': ServoTest_SendPose(SERVO_POSE_LIFT); break;
-        case 'D': case '4': ServoTest_SendPose(SERVO_POSE_LOWER); break;
-        case 'K': case '5': ServoTest_SendPose(SERVO_POSE_STACK); break;
-        case 'S': ServoTest_SendSimpleToAll("STOP", "DST"); break;
-        case 'R': ServoTest_SendSimpleToAll("RELEASE", "ULK"); break;
-        case 'Q': ServoTest_SendSimpleToAll("QUERY_ANGLE", "RAD"); break;
-        case 'H': case '?': ServoTest_PrintHelp(); break;
-        default:
-            accepted = 0U;
-            DiagUart_WriteString("CMD_UNKNOWN,");
-            ServoTest_LogSequence();
-            DiagUart_WriteString(",0x");
-            ServoTest_WriteHexByte(command);
-            DiagUart_WriteString("\r\n");
-            break;
+        ServoTest_SendPose(poseIndex);
+    }
+    else
+    {
+        switch (command)
+        {
+            case 'S': ServoTest_SendSimpleToAll("STOP", "DST"); break;
+            case 'R': ServoTest_SendSimpleToAll("RELEASE", "ULK"); break;
+            case 'Q': ServoTest_SendSimpleToAll("QUERY_ANGLE", "RAD"); break;
+            case 'H': case '?': ServoTest_PrintHelp(); break;
+            default:
+                accepted = 0U;
+                DiagUart_WriteString("CMD_UNKNOWN,");
+                ServoTest_LogSequence();
+                DiagUart_WriteString(",0x");
+                ServoTest_WriteHexByte(command);
+                DiagUart_WriteString("\r\n");
+                break;
+        }
     }
 
     if (source == 'B')

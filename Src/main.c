@@ -16,7 +16,18 @@
 #define DIAG_BAUDRATE 115200U
 #define NANO_BAUDRATE 115200U
 #define SERVO_BAUDRATE 115200U
+#ifndef BLUETOOTH_BAUDRATE
 #define BLUETOOTH_BAUDRATE 9600U
+#endif
+
+/*
+ * UART5 transport qualification must not be delayed by an unrelated noisy
+ * Bluetooth input.  Keep this disabled unless Bluetooth telemetry is being
+ * intentionally qualified in the same image.
+ */
+#ifndef NANO_UART_ENABLE_BLUETOOTH_MONITOR
+#define NANO_UART_ENABLE_BLUETOOTH_MONITOR 0U
+#endif
 
 static volatile uint32_t s_uptimeMs = 0U;
 
@@ -29,7 +40,9 @@ int main(void)
 {
     uint8_t nanoByte;
 
+#if NANO_UART_ENABLE_BLUETOOTH_MONITOR
     uint8_t bluetoothByte;
+#endif
     uint16_t nanoErrorFlags;
 
     SystemCoreClockUpdate();
@@ -38,7 +51,9 @@ int main(void)
 
     DiagUart_Init(DIAG_BAUDRATE);
     RobotUart_NanoInit(NANO_BAUDRATE);
+#if NANO_UART_ENABLE_BLUETOOTH_MONITOR
     RobotUart_BluetoothInit(BLUETOOTH_BAUDRATE);
+#endif
     RobotUart_ServoInit(SERVO_BAUDRATE);
     ServoTest_StopAll();
 
@@ -59,7 +74,9 @@ int main(void)
     DiagUart_WriteString(",nano_pins=PC12_PD2,bluetooth_pins=PD8_PD9,diag_pins=PB6_PB7,motors_safe=1,servo_stop_sent=1\r\n");
     NanoUartDiagLog_Init(s_uptimeMs);
     NanoUartTest_Init(s_uptimeMs);
+#if NANO_UART_ENABLE_BLUETOOTH_MONITOR
     BluetoothMotorTest_Init(s_uptimeMs);
+#endif
 
     while (1)
     {
@@ -68,10 +85,12 @@ int main(void)
             NanoUartTest_HandleByte(nanoByte, s_uptimeMs);
         }
 
+#if NANO_UART_ENABLE_BLUETOOTH_MONITOR
         while (RobotUart_BluetoothTryReadByte(&bluetoothByte) != 0U)
         {
             BluetoothMotorTest_HandleByte('B', bluetoothByte, s_uptimeMs);
         }
+#endif
 
         nanoErrorFlags = RobotUart_NanoConsumeErrorFlags();
         if (nanoErrorFlags != 0U)
@@ -81,7 +100,9 @@ int main(void)
 
         NanoUartDiagLog_PollCommand(s_uptimeMs);
         NanoUartTest_Update(s_uptimeMs);
+#if NANO_UART_ENABLE_BLUETOOTH_MONITOR
         BluetoothMotorTest_Update(s_uptimeMs);
+#endif
         MotorSafe_ForceOff();
     }
 }

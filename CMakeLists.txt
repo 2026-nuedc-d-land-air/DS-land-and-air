@@ -55,6 +55,10 @@ set(BLUETOOTH_BAUDRATE_VALUE
     "9600"
     CACHE STRING "USART3 Bluetooth baud rate")
 
+set(GYRO_BAUDRATE_VALUE
+    "9600"
+    CACHE STRING "USART2-remapped PD5/PD6 WIT gyro baud rate")
+
 # Sources
 set(sources_SRCS
 	${LIDAR_CAR_MAIN_SOURCE}
@@ -68,8 +72,10 @@ set(sources_SRCS
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/bsp_motor.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/bsp_diag_uart.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/bsp_robot_uart.c
+	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/bsp_gyro_wit.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/bsp_motor_safe.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/bsp_mecanum.c
+	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/app_ladrc.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/app_servo_test.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/app_bluetooth_motor_test.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/app_nano_uart_test.c
@@ -144,6 +150,7 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
 	${symbols_SYMB}
 	BLUETOOTH_MOTOR_OUTPUT_ENABLE=${BLUETOOTH_MOTOR_OUTPUT_ENABLE_VALUE}
 	BLUETOOTH_BAUDRATE=${BLUETOOTH_BAUDRATE_VALUE}
+	GYRO_BAUDRATE=${GYRO_BAUDRATE_VALUE}
     $<$<COMPILE_LANGUAGE:C>: ${symbols_c_SYMB}>
     $<$<COMPILE_LANGUAGE:CXX>: ${symbols_cxx_SYMB}>
     $<$<COMPILE_LANGUAGE:ASM>: ${symbols_asm_SYMB}>
