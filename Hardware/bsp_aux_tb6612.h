@@ -4,12 +4,12 @@
  * @brief   扩展两路 G513 的 TB6612 驱动（原始方向，开环）。
  *
  * 方向/待机：
- *   AIN1=PA5, AIN2=PA4
- *   BIN1=PD8, BIN2=PD9
- *   STBY=PB8
+ *   AIN1=PF1, AIN2=PF2
+ *   BIN1=PF3, BIN2=PF4
+ *   STBY=PC2
  *
- * 速度 PWM（TIM3 完全重映射）：PWMA=PC8、PWMB=PC9。
- * 编码器相位：左轮 A/B=PF1/PF2，右轮 A/B=PF3/PF4。
+ * 速度 PWM（TIM1 完全重映射）：PWMA=PE13、PWMB=PE14。
+ * 编码器相位：左轮 A/B=PB6/PB7，右轮 A/B=PC6/PC7。
  ******************************************************************************
  */
 
@@ -19,38 +19,40 @@
 #include "stm32f10x.h"
 
 /* Motor A direction */
-#define AUX_TB6612_AIN_GPIO_PORT       GPIOA
-#define AUX_TB6612_AIN_GPIO_CLK        RCC_APB2Periph_GPIOA
-#define AUX_TB6612_AIN1_PIN            GPIO_Pin_5
-#define AUX_TB6612_AIN2_PIN            GPIO_Pin_4
+#define AUX_TB6612_AIN_GPIO_PORT       GPIOF
+#define AUX_TB6612_AIN_GPIO_CLK        RCC_APB2Periph_GPIOF
+#define AUX_TB6612_AIN1_PIN            GPIO_Pin_1
+#define AUX_TB6612_AIN2_PIN            GPIO_Pin_2
 
 /* Motor B direction */
-#define AUX_TB6612_BIN_GPIO_PORT       GPIOD
-#define AUX_TB6612_BIN_GPIO_CLK        RCC_APB2Periph_GPIOD
-#define AUX_TB6612_BIN1_PIN            GPIO_Pin_8
-#define AUX_TB6612_BIN2_PIN            GPIO_Pin_9
+#define AUX_TB6612_BIN_GPIO_PORT       GPIOF
+#define AUX_TB6612_BIN_GPIO_CLK        RCC_APB2Periph_GPIOF
+#define AUX_TB6612_BIN1_PIN            GPIO_Pin_3
+#define AUX_TB6612_BIN2_PIN            GPIO_Pin_4
 
 /* Standby */
-#define AUX_TB6612_STBY_GPIO_PORT      GPIOB
-#define AUX_TB6612_STBY_GPIO_CLK       RCC_APB2Periph_GPIOB
-#define AUX_TB6612_STBY_PIN            GPIO_Pin_8
+#define AUX_TB6612_STBY_GPIO_PORT      GPIOC
+#define AUX_TB6612_STBY_GPIO_CLK       RCC_APB2Periph_GPIOC
+#define AUX_TB6612_STBY_PIN            GPIO_Pin_2
 
-/* TIM3 full remap: CH3=PC8 (PWMA), CH4=PC9 (PWMB). */
-#define AUX_TB6612_PWM_GPIO_PORT       GPIOC
-#define AUX_TB6612_PWM_GPIO_CLK        RCC_APB2Periph_GPIOC
-#define AUX_TB6612_PWMA_PIN            GPIO_Pin_8
-#define AUX_TB6612_PWMB_PIN            GPIO_Pin_9
-#define AUX_TB6612_TIM                 TIM3
-#define AUX_TB6612_TIM_CLK             RCC_APB1Periph_TIM3
+/* TIM1 full remap: CH3=PE13 (PWMA), CH4=PE14 (PWMB). */
+#define AUX_TB6612_PWM_GPIO_PORT       GPIOE
+#define AUX_TB6612_PWM_GPIO_CLK        RCC_APB2Periph_GPIOE
+#define AUX_TB6612_PWMA_PIN            GPIO_Pin_13
+#define AUX_TB6612_PWMB_PIN            GPIO_Pin_14
+#define AUX_TB6612_TIM                 TIM1
+#define AUX_TB6612_TIM_CLK             RCC_APB2Periph_TIM1
 #define AUX_TB6612_PWM_PERIOD          3600U
 
 /* Rear wheel encoder phases; input only, never driven by this BSP. */
-#define AUX_TB6612_ENC_GPIO_PORT       GPIOF
-#define AUX_TB6612_ENC_GPIO_CLK        RCC_APB2Periph_GPIOF
-#define AUX_TB6612_LEFT_ENC_A_PIN      GPIO_Pin_1
-#define AUX_TB6612_LEFT_ENC_B_PIN      GPIO_Pin_2
-#define AUX_TB6612_RIGHT_ENC_A_PIN     GPIO_Pin_3
-#define AUX_TB6612_RIGHT_ENC_B_PIN     GPIO_Pin_4
+#define AUX_TB6612_LEFT_ENC_GPIO_PORT  GPIOB
+#define AUX_TB6612_LEFT_ENC_GPIO_CLK   RCC_APB2Periph_GPIOB
+#define AUX_TB6612_LEFT_ENC_A_PIN      GPIO_Pin_6  /* TIM4_CH1 */
+#define AUX_TB6612_LEFT_ENC_B_PIN      GPIO_Pin_7  /* TIM4_CH2 */
+#define AUX_TB6612_RIGHT_ENC_GPIO_PORT GPIOC
+#define AUX_TB6612_RIGHT_ENC_GPIO_CLK  RCC_APB2Periph_GPIOC
+#define AUX_TB6612_RIGHT_ENC_A_PIN     GPIO_Pin_6  /* TIM8_CH1 */
+#define AUX_TB6612_RIGHT_ENC_B_PIN     GPIO_Pin_7  /* TIM8_CH2 */
 
 typedef enum
 {

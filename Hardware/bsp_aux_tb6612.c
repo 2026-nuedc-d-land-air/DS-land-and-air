@@ -1,7 +1,7 @@
 /**
  ******************************************************************************
  * @file    bsp_aux_tb6612.c
- * @brief   Added TB6612 with TIM3 PWM and rear-wheel phase observation.
+ * @brief   Rear TB6612 with TIM1 PWM and rear-wheel phase observation.
  ******************************************************************************
  */
 
@@ -69,15 +69,20 @@ static void AuxTb6612_SetDirectionB(int16_t rawPercent)
 
 static uint8_t AuxTb6612_ReadEncoderState(AuxTb6612Motor_t motor)
 {
-    uint16_t input = AUX_TB6612_ENC_GPIO_PORT->IDR;
-
     if (motor == AUX_TB6612_MOTOR_A)
     {
+        uint16_t input = AUX_TB6612_LEFT_ENC_GPIO_PORT->IDR;
+
         return (uint8_t)(((input & AUX_TB6612_LEFT_ENC_A_PIN) != 0U ? 2U : 0U) |
                          ((input & AUX_TB6612_LEFT_ENC_B_PIN) != 0U ? 1U : 0U));
     }
-    return (uint8_t)(((input & AUX_TB6612_RIGHT_ENC_A_PIN) != 0U ? 2U : 0U) |
-                     ((input & AUX_TB6612_RIGHT_ENC_B_PIN) != 0U ? 1U : 0U));
+    else
+    {
+        uint16_t input = AUX_TB6612_RIGHT_ENC_GPIO_PORT->IDR;
+
+        return (uint8_t)(((input & AUX_TB6612_RIGHT_ENC_A_PIN) != 0U ? 2U : 0U) |
+                         ((input & AUX_TB6612_RIGHT_ENC_B_PIN) != 0U ? 1U : 0U));
+    }
 }
 
 static void AuxTb6612_GpioInit(void)
@@ -88,7 +93,8 @@ static void AuxTb6612_GpioInit(void)
                            AUX_TB6612_BIN_GPIO_CLK |
                            AUX_TB6612_STBY_GPIO_CLK |
                            AUX_TB6612_PWM_GPIO_CLK |
-                           AUX_TB6612_ENC_GPIO_CLK |
+                           AUX_TB6612_LEFT_ENC_GPIO_CLK |
+                           AUX_TB6612_RIGHT_ENC_GPIO_CLK |
                            RCC_APB2Periph_AFIO, ENABLE);
 
     GPIO_StructInit(&gpio);
@@ -109,17 +115,19 @@ static void AuxTb6612_GpioInit(void)
     GPIO_Init(AUX_TB6612_STBY_GPIO_PORT, &gpio);
     GPIO_ResetBits(AUX_TB6612_STBY_GPIO_PORT, AUX_TB6612_STBY_PIN);
 
-    GPIO_PinRemapConfig(GPIO_FullRemap_TIM3, ENABLE);
+    GPIO_PinRemapConfig(GPIO_FullRemap_TIM1, ENABLE);
     gpio.GPIO_Pin = AUX_TB6612_PWMA_PIN | AUX_TB6612_PWMB_PIN;
     gpio.GPIO_Mode = GPIO_Mode_AF_PP;
     GPIO_Init(AUX_TB6612_PWM_GPIO_PORT, &gpio);
 
     gpio.GPIO_Pin = AUX_TB6612_LEFT_ENC_A_PIN |
-                    AUX_TB6612_LEFT_ENC_B_PIN |
-                    AUX_TB6612_RIGHT_ENC_A_PIN |
-                    AUX_TB6612_RIGHT_ENC_B_PIN;
+                    AUX_TB6612_LEFT_ENC_B_PIN;
     gpio.GPIO_Mode = GPIO_Mode_IPU;
-    GPIO_Init(AUX_TB6612_ENC_GPIO_PORT, &gpio);
+    GPIO_Init(AUX_TB6612_LEFT_ENC_GPIO_PORT, &gpio);
+
+    gpio.GPIO_Pin = AUX_TB6612_RIGHT_ENC_A_PIN |
+                    AUX_TB6612_RIGHT_ENC_B_PIN;
+    GPIO_Init(AUX_TB6612_RIGHT_ENC_GPIO_PORT, &gpio);
 }
 
 static void AuxTb6612_PwmInit(void)
@@ -127,7 +135,7 @@ static void AuxTb6612_PwmInit(void)
     TIM_TimeBaseInitTypeDef timebase;
     TIM_OCInitTypeDef outputCompare;
 
-    RCC_APB1PeriphClockCmd(AUX_TB6612_TIM_CLK, ENABLE);
+    RCC_APB2PeriphClockCmd(AUX_TB6612_TIM_CLK, ENABLE);
     TIM_TimeBaseStructInit(&timebase);
     timebase.TIM_Period = AUX_TB6612_PWM_PERIOD - 1U;
     timebase.TIM_Prescaler = 0U;
@@ -145,6 +153,7 @@ static void AuxTb6612_PwmInit(void)
     TIM_OC3PreloadConfig(AUX_TB6612_TIM, TIM_OCPreload_Enable);
     TIM_OC4PreloadConfig(AUX_TB6612_TIM, TIM_OCPreload_Enable);
     TIM_ARRPreloadConfig(AUX_TB6612_TIM, ENABLE);
+    TIM_CtrlPWMOutputs(AUX_TB6612_TIM, ENABLE);
     TIM_Cmd(AUX_TB6612_TIM, ENABLE);
 }
 
@@ -212,7 +221,7 @@ void AuxTb6612_RestorePwmAf(void)
     TIM_SetCompare3(AUX_TB6612_TIM, 0U);
     TIM_SetCompare4(AUX_TB6612_TIM, 0U);
 
-    GPIO_PinRemapConfig(GPIO_FullRemap_TIM3, ENABLE);
+    GPIO_PinRemapConfig(GPIO_FullRemap_TIM1, ENABLE);
     GPIO_StructInit(&gpio);
     gpio.GPIO_Pin = AUX_TB6612_PWMA_PIN | AUX_TB6612_PWMB_PIN;
     gpio.GPIO_Mode = GPIO_Mode_AF_PP;

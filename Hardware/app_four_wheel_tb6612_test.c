@@ -1,13 +1,10 @@
 /**
  ******************************************************************************
  * @file    app_four_wheel_tb6612_test.c
- * @brief   Long GPIO force bring-up: FRONT then REAR, physical pin readback.
+ * @brief   Four-wheel PWM bring-up with a bounded, simultaneous drive test.
  *
- * Auto loop after 1 s:
- *   FRONT_L 100% GPIO 4s -> stop -> FRONT_R 100% GPIO 4s -> stop
- *   REAR_A  100% GPIO 4s -> stop -> REAR_B  100% GPIO 4s -> stop -> repeat
- *
- * Logs pe6/pa2/pa3 and rear pc8/pc9/stby so wiring can be checked without scope.
+ * Auto test after 1 s: all four wheels run for 4 s, then coast and disable.
+ * G repeats the forward test, B runs the reverse test, and S stops immediately.
  ******************************************************************************
  */
 
@@ -18,7 +15,7 @@
 #include "bsp_motor.h"
 
 #define DRIVE_MS           4000U
-#define STOP_MS            1000U
+#define DRIVE_PERCENT      65
 #define LOG_PERIOD_MS       250U
 #define IDLE_LOG_MS        1000U
 #define AUTO_START_MS      1000U
@@ -26,14 +23,8 @@
 typedef enum
 {
     ST_IDLE = 0,
-    ST_FRONT_L,
-    ST_FRONT_L_STOP,
-    ST_FRONT_R,
-    ST_FRONT_R_STOP,
-    ST_REAR_A,
-    ST_REAR_A_STOP,
-    ST_REAR_B,
-    ST_REAR_B_STOP
+    ST_ALL_DRIVE,
+    ST_ALL_STOP
 } Stage_t;
 
 static Stage_t s_stage;
@@ -42,6 +33,7 @@ static uint32_t s_lastLogMs;
 static uint32_t s_bootMs;
 static uint8_t s_running;
 static uint8_t s_autoStarted;
+static int16_t s_driveSign;
 
 static uint8_t TimeReached(uint32_t nowMs, uint32_t deadlineMs)
 {
@@ -52,14 +44,8 @@ static const char *StageName(Stage_t stage)
 {
     switch (stage)
     {
-        case ST_FRONT_L: return "FRONT_L_GPIO100";
-        case ST_FRONT_L_STOP: return "FRONT_L_STOP";
-        case ST_FRONT_R: return "FRONT_R_GPIO100";
-        case ST_FRONT_R_STOP: return "FRONT_R_STOP";
-        case ST_REAR_A: return "REAR_A_GPIO100";
-        case ST_REAR_A_STOP: return "REAR_A_STOP";
-        case ST_REAR_B: return "REAR_B_GPIO100";
-        case ST_REAR_B_STOP: return "REAR_B_STOP";
+        case ST_ALL_DRIVE: return (s_driveSign >= 0) ? "ALL_FORWARD_PWM" : "ALL_REVERSE_PWM";
+        case ST_ALL_STOP: return "ALL_STOP";
         default: return "IDLE";
     }
 }
@@ -86,14 +72,18 @@ static void WriteEvent(const char *event, uint32_t nowMs)
     DiagUart_WriteUInt32(Motor_GetDirBits(MOTOR_RIGHT));
     DiagUart_WriteString(",rear_stby_sw,");
     DiagUart_WriteUInt32(AuxTb6612_IsEnabled());
-    DiagUart_WriteString(",pc8,");
-    DiagUart_WriteUInt32(AuxTb6612_GetPwmGpioLevel(AUX_TB6612_MOTOR_A));
-    DiagUart_WriteString(",pc9,");
-    DiagUart_WriteUInt32(AuxTb6612_GetPwmGpioLevel(AUX_TB6612_MOTOR_B));
+    DiagUart_WriteString(",rear_pwm_a,");
+    DiagUart_WriteUInt32(AuxTb6612_GetPwmCompare(AUX_TB6612_MOTOR_A));
+    DiagUart_WriteString(",rear_pwm_b,");
+    DiagUart_WriteUInt32(AuxTb6612_GetPwmCompare(AUX_TB6612_MOTOR_B));
     DiagUart_WriteString(",ain,");
     DiagUart_WriteUInt32(AuxTb6612_GetDirBits(AUX_TB6612_MOTOR_A));
     DiagUart_WriteString(",bin,");
     DiagUart_WriteUInt32(AuxTb6612_GetDirBits(AUX_TB6612_MOTOR_B));
+    DiagUart_WriteString(",rear_enc_a,");
+    DiagUart_WriteUInt32(AuxTb6612_GetEncoderTransitions(AUX_TB6612_MOTOR_A));
+    DiagUart_WriteString(",rear_enc_b,");
+    DiagUart_WriteUInt32(AuxTb6612_GetEncoderTransitions(AUX_TB6612_MOTOR_B));
     DiagUart_WriteString("\r\n");
 }
 
@@ -115,51 +105,38 @@ static void EnterStage(Stage_t stage, uint32_t nowMs)
 
     switch (stage)
     {
-        case ST_FRONT_L:
-            AuxTb6612_StopAll();
-            Motor_Coast(MOTOR_RIGHT);
-            Motor_ForceGpioFull(MOTOR_LEFT, +1);
-            break;
-        case ST_FRONT_R:
-            AuxTb6612_StopAll();
-            Motor_Coast(MOTOR_LEFT);
-            Motor_ForceGpioFull(MOTOR_RIGHT, +1);
-            break;
-        case ST_REAR_A:
-            Motor_Coast(MOTOR_LEFT);
-            Motor_Coast(MOTOR_RIGHT);
-            Motor_Enable(0U);
+        case ST_ALL_DRIVE:
             Motor_RestorePwmAf();
-            AuxTb6612_ForceGpioFull(AUX_TB6612_MOTOR_A, +1);
+            AuxTb6612_RestorePwmAf();
+            Motor_SetSpeedBoth((int16_t)(s_driveSign * DRIVE_PERCENT),
+                                (int16_t)(s_driveSign * DRIVE_PERCENT));
+            AuxTb6612_SetRawSpeed(AUX_TB6612_MOTOR_A,
+                                   (int16_t)(s_driveSign * DRIVE_PERCENT));
+            AuxTb6612_SetRawSpeed(AUX_TB6612_MOTOR_B,
+                                   (int16_t)(s_driveSign * DRIVE_PERCENT));
+            Motor_Enable(1U);
+            AuxTb6612_Enable(1U);
             break;
-        case ST_REAR_B:
-            Motor_Coast(MOTOR_LEFT);
-            Motor_Coast(MOTOR_RIGHT);
-            Motor_Enable(0U);
-            Motor_RestorePwmAf();
-            AuxTb6612_ForceGpioFull(AUX_TB6612_MOTOR_B, +1);
-            break;
-        case ST_FRONT_L_STOP:
-        case ST_FRONT_R_STOP:
-        case ST_REAR_A_STOP:
-        case ST_REAR_B_STOP:
+        case ST_ALL_STOP:
         default:
             AuxTb6612_StopAll();
             Motor_Coast(MOTOR_LEFT);
             Motor_Coast(MOTOR_RIGHT);
             Motor_Enable(0U);
             Motor_RestorePwmAf();
+            s_running = 0U;
             break;
     }
 
     WriteEvent("stage_begin", nowMs);
 }
 
-static void StartLoop(uint32_t nowMs)
+static void StartDrive(int16_t sign, uint32_t nowMs)
 {
     StopAll();
+    s_driveSign = (sign >= 0) ? 1 : -1;
     s_running = 1U;
-    EnterStage(ST_FRONT_L, nowMs);
+    EnterStage(ST_ALL_DRIVE, nowMs);
 }
 
 void FourWheelTb6612Test_Init(uint32_t nowMs)
@@ -170,9 +147,10 @@ void FourWheelTb6612Test_Init(uint32_t nowMs)
     s_bootMs = nowMs;
     s_autoStarted = 0U;
 
-    DiagUart_WriteString("FW,boot,fw=gpio_force_front_rear,safe_idle=1\r\n");
-    DiagUart_WriteString("FW,config,front=pa2_pa3_pe2_pe6,rear=pc8_pc9_pa5_pa4_pd8_pd9_pb8\r\n");
-    DiagUart_WriteString("FW,note,auto=FL,FR,RA,RB_each_4s_gpio100;S=stop,G=restart\r\n");
+    s_driveSign = 1;
+    DiagUart_WriteString("FW,boot,fw=all_wheel_pwm,safe_idle=1\r\n");
+    DiagUart_WriteString("FW,config,front=pa2_pa3_pe2_pe6,rear=pe13_pe14_pf1_pf4_pc2\r\n");
+    DiagUart_WriteString("FW,note,auto=all_forward_65pct_4s;G=forward,B=reverse,S=stop\r\n");
 }
 
 void FourWheelTb6612Test_Update(uint32_t nowMs)
@@ -187,7 +165,7 @@ void FourWheelTb6612Test_Update(uint32_t nowMs)
     {
         s_autoStarted = 1U;
         DiagUart_WriteString("FW,event,auto_start\r\n");
-        StartLoop(nowMs);
+        StartDrive(+1, nowMs);
         elapsed = 0U;
     }
 
@@ -202,33 +180,8 @@ void FourWheelTb6612Test_Update(uint32_t nowMs)
 
     switch (s_stage)
     {
-        case ST_FRONT_L:
-            if (elapsed >= DRIVE_MS) EnterStage(ST_FRONT_L_STOP, nowMs);
-            break;
-        case ST_FRONT_L_STOP:
-            if (elapsed >= STOP_MS) EnterStage(ST_FRONT_R, nowMs);
-            break;
-        case ST_FRONT_R:
-            if (elapsed >= DRIVE_MS) EnterStage(ST_FRONT_R_STOP, nowMs);
-            break;
-        case ST_FRONT_R_STOP:
-            if (elapsed >= STOP_MS) EnterStage(ST_REAR_A, nowMs);
-            break;
-        case ST_REAR_A:
-            if (elapsed >= DRIVE_MS) EnterStage(ST_REAR_A_STOP, nowMs);
-            break;
-        case ST_REAR_A_STOP:
-            if (elapsed >= STOP_MS) EnterStage(ST_REAR_B, nowMs);
-            break;
-        case ST_REAR_B:
-            if (elapsed >= DRIVE_MS) EnterStage(ST_REAR_B_STOP, nowMs);
-            break;
-        case ST_REAR_B_STOP:
-            if (elapsed >= STOP_MS)
-            {
-                WriteEvent("loop_restart", nowMs);
-                EnterStage(ST_FRONT_L, nowMs);
-            }
+        case ST_ALL_DRIVE:
+            if (elapsed >= DRIVE_MS) EnterStage(ST_ALL_STOP, nowMs);
             break;
         default:
             break;
@@ -241,7 +194,11 @@ void FourWheelTb6612Test_HandleCommand(char command, uint32_t nowMs)
     {
         case 'G':
         case 'g':
-            StartLoop(nowMs);
+            StartDrive(+1, nowMs);
+            break;
+        case 'B':
+        case 'b':
+            StartDrive(-1, nowMs);
             break;
         case 'S':
         case 's':
@@ -251,7 +208,7 @@ void FourWheelTb6612Test_HandleCommand(char command, uint32_t nowMs)
         case 'H':
         case 'h':
         case '?':
-            DiagUart_WriteString("FW,commands,G=restart,S=stop,H=help\r\n");
+            DiagUart_WriteString("FW,commands,G=forward,B=reverse,S=stop,H=help\r\n");
             break;
         default:
             break;
