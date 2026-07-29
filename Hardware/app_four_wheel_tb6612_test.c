@@ -20,6 +20,12 @@
 #define IDLE_LOG_MS        1000U
 #define AUTO_START_MS      1000U
 
+/* Physical forward calibration from the PB9 four-wheel test. */
+#define FRONT_LEFT_FORWARD_SIGN   (-1)
+#define FRONT_RIGHT_FORWARD_SIGN  (-1)
+#define REAR_LEFT_FORWARD_SIGN    (+1)
+#define REAR_RIGHT_FORWARD_SIGN   (-1)
+
 typedef enum
 {
     ST_IDLE = 0,
@@ -72,6 +78,8 @@ static void WriteEvent(const char *event, uint32_t nowMs)
     DiagUart_WriteUInt32(Motor_GetDirBits(MOTOR_RIGHT));
     DiagUart_WriteString(",rear_stby_sw,");
     DiagUart_WriteUInt32(AuxTb6612_IsEnabled());
+    DiagUart_WriteString(",pb9,");
+    DiagUart_WriteUInt32(AuxTb6612_GetStbyLevel());
     DiagUart_WriteString(",rear_pwm_a,");
     DiagUart_WriteUInt32(AuxTb6612_GetPwmCompare(AUX_TB6612_MOTOR_A));
     DiagUart_WriteString(",rear_pwm_b,");
@@ -108,12 +116,18 @@ static void EnterStage(Stage_t stage, uint32_t nowMs)
         case ST_ALL_DRIVE:
             Motor_RestorePwmAf();
             AuxTb6612_RestorePwmAf();
-            Motor_SetSpeedBoth((int16_t)(s_driveSign * DRIVE_PERCENT),
-                                (int16_t)(s_driveSign * DRIVE_PERCENT));
+            Motor_SetSpeed(MOTOR_LEFT,
+                           (int16_t)(s_driveSign * DRIVE_PERCENT *
+                                     FRONT_LEFT_FORWARD_SIGN));
+            Motor_SetSpeed(MOTOR_RIGHT,
+                           (int16_t)(s_driveSign * DRIVE_PERCENT *
+                                     FRONT_RIGHT_FORWARD_SIGN));
             AuxTb6612_SetRawSpeed(AUX_TB6612_MOTOR_A,
-                                   (int16_t)(s_driveSign * DRIVE_PERCENT));
+                                   (int16_t)(s_driveSign * DRIVE_PERCENT *
+                                             REAR_LEFT_FORWARD_SIGN));
             AuxTb6612_SetRawSpeed(AUX_TB6612_MOTOR_B,
-                                   (int16_t)(s_driveSign * DRIVE_PERCENT));
+                                   (int16_t)(s_driveSign * DRIVE_PERCENT *
+                                             REAR_RIGHT_FORWARD_SIGN));
             Motor_Enable(1U);
             AuxTb6612_Enable(1U);
             break;
@@ -149,7 +163,8 @@ void FourWheelTb6612Test_Init(uint32_t nowMs)
 
     s_driveSign = 1;
     DiagUart_WriteString("FW,boot,fw=all_wheel_pwm,safe_idle=1\r\n");
-    DiagUart_WriteString("FW,config,front=pa2_pa3_pe2_pe6,rear=pe13_pe14_pf1_pf4_pc2\r\n");
+    DiagUart_WriteString("FW,config,front=pa2_pa3_pe2_pe6,rear=pe13_pe14_pf1_pf4_pb9\r\n");
+    DiagUart_WriteString("FW,forward_sign,fl=-1,fr=-1,rl=+1,rr=-1\r\n");
     DiagUart_WriteString("FW,note,auto=all_forward_65pct_4s;G=forward,B=reverse,S=stop\r\n");
 }
 

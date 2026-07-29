@@ -25,7 +25,7 @@ ground, must be common.
 | PWMB | PE14 | TIM1_CH4 PWM, full remap |
 | AIN1 / AIN2 | PF1 / PF2 | Left-rear direction GPIO |
 | BIN1 / BIN2 | PF3 / PF4 | Right-rear direction GPIO |
-| STBY | PC2 | Rear driver enable |
+| STBY | PB9 | Rear driver enable |
 | Left encoder A / B | PB6 / PB7 | TIM4_CH1 / CH2 |
 | Right encoder A / B | PC6 / PC7 | TIM8_CH1 / CH2 |
 
@@ -34,9 +34,21 @@ right-rear motor `M+/M-`. If a wheel moves opposite to the required vehicle
 direction, swap that motor's `M+` and `M-` leads or invert only that motor in
 software after the test has established its physical direction.
 
-`PF1` through `PF4` are unavailable to the eight-channel gray tracking module
-while this rear driver wiring is installed. The gray module is deliberately not
-initialized in this motor test image.
+The competition gray module uses `PC0/PC1/PC2` plus `PG0/PG1`; it has no known
+pin conflict with this rear bench mapping. The four-wheel test image still does
+not initialize gray decoding or line following.
+
+## Direction Calibration
+
+The 2026-07-30 PB9 test established the signs that make `G` command physical
+vehicle forward. These signs apply only to `FourWheelTb6612Debug`:
+
+| Wheel | Forward sign |
+| --- | --- |
+| Front-left | -1 |
+| Front-right | -1 |
+| Rear-left | +1 |
+| Rear-right | -1 |
 
 ## Test Image
 

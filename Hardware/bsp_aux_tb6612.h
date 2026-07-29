@@ -6,7 +6,7 @@
  * 方向/待机：
  *   AIN1=PF1, AIN2=PF2
  *   BIN1=PF3, BIN2=PF4
- *   STBY=PC2
+ *   STBY=PB9
  *
  * 速度 PWM（TIM1 完全重映射）：PWMA=PE13、PWMB=PE14。
  * 编码器相位：左轮 A/B=PB6/PB7，右轮 A/B=PC6/PC7。
@@ -31,9 +31,9 @@
 #define AUX_TB6612_BIN2_PIN            GPIO_Pin_4
 
 /* Standby */
-#define AUX_TB6612_STBY_GPIO_PORT      GPIOC
-#define AUX_TB6612_STBY_GPIO_CLK       RCC_APB2Periph_GPIOC
-#define AUX_TB6612_STBY_PIN            GPIO_Pin_2
+#define AUX_TB6612_STBY_GPIO_PORT      GPIOB
+#define AUX_TB6612_STBY_GPIO_CLK       RCC_APB2Periph_GPIOB
+#define AUX_TB6612_STBY_PIN            GPIO_Pin_9
 
 /* TIM1 full remap: CH3=PE13 (PWMA), CH4=PE14 (PWMB). */
 #define AUX_TB6612_PWM_GPIO_PORT       GPIOE
@@ -73,5 +73,6 @@ uint16_t AuxTb6612_GetEncoderTransitions(AuxTb6612Motor_t motor);
 uint16_t AuxTb6612_GetPwmCompare(AuxTb6612Motor_t motor);
 uint8_t AuxTb6612_GetDirBits(AuxTb6612Motor_t motor);
 uint8_t AuxTb6612_GetPwmGpioLevel(AuxTb6612Motor_t motor);
+uint8_t AuxTb6612_GetStbyLevel(void);
 
 #endif /* __BSP_AUX_TB6612_H */

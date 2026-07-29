@@ -332,3 +332,9 @@ uint8_t AuxTb6612_GetPwmGpioLevel(AuxTb6612Motor_t motor)
                    AUX_TB6612_PWMA_PIN : AUX_TB6612_PWMB_PIN;
     return ((idr & pin) != 0U) ? 1U : 0U;
 }
+
+uint8_t AuxTb6612_GetStbyLevel(void)
+{
+    return ((AUX_TB6612_STBY_GPIO_PORT->IDR & AUX_TB6612_STBY_PIN) != 0U) ?
+           1U : 0U;
+}
