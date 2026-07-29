@@ -1,0 +1,11 @@
+{
+  "project": "lidar_car",
+  "target": "STM32F103ZE",
+  "preset": "GyroStraight400Debug",
+  "entry_source": "F:/keil5/stm/ZET6 HAl/lidar_car/Src/main_gyro_straight_test.c",
+  "generated_at": "2026-07-28T13:21:26.0000691+08:00",
+  "manual_flash_hex": "F:\\keil5\\stm\\ZET6 HAl\\lidar_car\\manual-flash\\GyroStraight400Debug\\lidar_car.hex",
+  "manual_flash_bin": "F:\\keil5\\stm\\ZET6 HAl\\lidar_car\\manual-flash\\GyroStraight400Debug\\lidar_car.bin",
+  "elf": "F:\\keil5\\stm\\ZET6 HAl\\lidar_car\\manual-flash\\GyroStraight400Debug\\lidar_car.elf",
+  "hex_sha256": "C59DB718ADE60E8AE35C02029CC502B4BB7C282F0FAED0D115565FFB3718045B"
+}

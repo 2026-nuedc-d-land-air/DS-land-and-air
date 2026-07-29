@@ -110,4 +110,11 @@ void Motor_Enable(uint8_t enable);
   */
 uint8_t Motor_IsEnabled(void);
 
+/* 100% DC on PA2/PA3 as GPIO; bypasses TIM2 for bring-up. */
+void Motor_ForceGpioFull(Motor_Index_t motor, int16_t rawSign);
+void Motor_RestorePwmAf(void);
+uint8_t Motor_GetPwmGpioLevel(Motor_Index_t motor);
+uint8_t Motor_GetStbyLevel(void);
+uint8_t Motor_GetDirBits(Motor_Index_t motor);
+
 #endif /* __BSP_MOTOR_H */

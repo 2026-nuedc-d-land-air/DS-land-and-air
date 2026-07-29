@@ -1,0 +1,11 @@
+{
+  "project": "lidar_car",
+  "target": "STM32F103ZE",
+  "preset": "ExpansionActuatorTestDebug",
+  "entry_source": "F:/keil5/stm/ZET6 HAl/lidar_car/Src/main_expansion_actuator_test.c",
+  "generated_at": "2026-07-28T12:28:17.9149727+08:00",
+  "manual_flash_hex": "F:\\keil5\\stm\\ZET6 HAl\\lidar_car\\manual-flash\\ExpansionActuatorTestDebug\\lidar_car.hex",
+  "manual_flash_bin": "F:\\keil5\\stm\\ZET6 HAl\\lidar_car\\manual-flash\\ExpansionActuatorTestDebug\\lidar_car.bin",
+  "elf": "F:\\keil5\\stm\\ZET6 HAl\\lidar_car\\manual-flash\\ExpansionActuatorTestDebug\\lidar_car.elf",
+  "hex_sha256": "45E9E7D3F4FDE87E46A6DF0EAF6B06117397CBA9E54F465EC68B74E860010543"
+}

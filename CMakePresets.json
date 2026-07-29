@@ -93,6 +93,22 @@
                 "LIDAR_CAR_MAIN_SOURCE": "${sourceDir}/Src/main_pwm_gyro_sweep.c",
                 "GYRO_BAUDRATE_VALUE": "9600"
             }
+        },
+        {
+            "name": "FourWheelTb6612Debug",
+            "inherits": "default",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "LIDAR_CAR_MAIN_SOURCE": "${sourceDir}/Src/main_four_wheel_tb6612_test.c"
+            }
+        },
+        {
+            "name": "FrontTb6612DirectTestDebug",
+            "inherits": "default",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "LIDAR_CAR_MAIN_SOURCE": "${sourceDir}/Src/main_front_tb6612_direct_test.c"
+            }
         }
     ],
     "buildPresets": [
@@ -132,6 +148,14 @@
         {
             "name": "PwmGyroSweepDebug",
             "configurePreset": "PwmGyroSweepDebug"
+        },
+        {
+            "name": "FourWheelTb6612Debug",
+            "configurePreset": "FourWheelTb6612Debug"
+        },
+        {
+            "name": "FrontTb6612DirectTestDebug",
+            "configurePreset": "FrontTb6612DirectTestDebug"
         }
     ]
 }

@@ -70,6 +70,8 @@ set(sources_SRCS
 	${CMAKE_CURRENT_SOURCE_DIR}/Library/stm32f10x_usart.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/bsp_l298n.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/bsp_motor.c
+	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/bsp_aux_tb6612.c
+	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/app_four_wheel_tb6612_test.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/bsp_diag_uart.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/bsp_robot_uart.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/bsp_gyro_wit.c

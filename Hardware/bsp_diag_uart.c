@@ -5,22 +5,23 @@ void DiagUart_Init(uint32_t baudrate)
     GPIO_InitTypeDef gpio;
     USART_InitTypeDef usart;
 
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB |
+    /* Default USART1 on PA9/PA10 for J-Link CDC / onboard VCOM.
+     * Do not enable USART1 remap (PB6/PB7) here. */
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA |
                            RCC_APB2Periph_AFIO |
                            RCC_APB2Periph_USART1, ENABLE);
 
-    GPIO_PinRemapConfig(GPIO_Remap_USART1, ENABLE);
+    GPIO_PinRemapConfig(GPIO_Remap_USART1, DISABLE);
 
-    /* USART1 remap: PB6=MCU TX, PB7=MCU RX. */
     GPIO_StructInit(&gpio);
-    gpio.GPIO_Pin = GPIO_Pin_6;
+    gpio.GPIO_Pin = GPIO_Pin_9; /* PA9 = USART1_TX */
     gpio.GPIO_Mode = GPIO_Mode_AF_PP;
     gpio.GPIO_Speed = GPIO_Speed_50MHz;
-    GPIO_Init(GPIOB, &gpio);
+    GPIO_Init(GPIOA, &gpio);
 
-    gpio.GPIO_Pin = GPIO_Pin_7;
+    gpio.GPIO_Pin = GPIO_Pin_10; /* PA10 = USART1_RX */
     gpio.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-    GPIO_Init(GPIOB, &gpio);
+    GPIO_Init(GPIOA, &gpio);
 
     USART_StructInit(&usart);
     usart.USART_BaudRate = baudrate;

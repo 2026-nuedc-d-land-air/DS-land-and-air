@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('Debug', 'Release', 'BluetoothMotorDebug', 'BluetoothMotor115200Debug', 'BluetoothMotorDriveDebug', 'ServoUartTestDebug', 'BluetoothCarArmDebug', 'PwmGyroSweepDebug')]
+    [ValidateSet('Debug', 'Release', 'BluetoothMotorDebug', 'BluetoothMotor115200Debug', 'BluetoothMotorDriveDebug', 'ServoUartTestDebug', 'BluetoothCarArmDebug', 'PwmGyroSweepDebug', 'FourWheelTb6612Debug', 'FrontTb6612DirectTestDebug')]
     [string]$Configuration = 'Debug'
 )
 

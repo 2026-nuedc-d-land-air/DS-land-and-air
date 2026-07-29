@@ -262,3 +262,87 @@ uint8_t Motor_IsEnabled(void)
 {
     return s_motorEnabled;
 }
+
+void Motor_RestorePwmAf(void)
+{
+    GPIO_InitTypeDef gpio;
+
+    Motor_SetPWMLeft(0);
+    Motor_SetPWMRight(0);
+
+    GPIO_StructInit(&gpio);
+    gpio.GPIO_Pin = MOTOR_PWMA_PIN | MOTOR_PWMB_PIN;
+    gpio.GPIO_Mode = GPIO_Mode_AF_PP;
+    gpio.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(MOTOR_PWM_GPIO_PORT, &gpio);
+}
+
+void Motor_ForceGpioFull(Motor_Index_t motor, int16_t rawSign)
+{
+    GPIO_InitTypeDef gpio;
+    uint16_t pin;
+
+    Motor_SetPWMLeft(0);
+    Motor_SetPWMRight(0);
+
+    GPIO_StructInit(&gpio);
+    gpio.GPIO_Mode = GPIO_Mode_Out_PP;
+    gpio.GPIO_Speed = GPIO_Speed_50MHz;
+    gpio.GPIO_Pin = MOTOR_PWMA_PIN | MOTOR_PWMB_PIN;
+    GPIO_Init(MOTOR_PWM_GPIO_PORT, &gpio);
+    GPIO_ResetBits(MOTOR_PWM_GPIO_PORT, MOTOR_PWMA_PIN | MOTOR_PWMB_PIN);
+
+    if (motor == MOTOR_LEFT)
+    {
+        if (rawSign >= 0)
+        {
+            Motor_SetDirLeft(MOTOR_DIR_FORWARD);
+        }
+        else
+        {
+            Motor_SetDirLeft(MOTOR_DIR_BACKWARD);
+        }
+        GPIO_ResetBits(MOTOR_DIR_GPIO_PORT, MOTOR_BIN1_PIN | MOTOR_BIN2_PIN);
+        pin = MOTOR_PWMA_PIN;
+    }
+    else
+    {
+        if (rawSign >= 0)
+        {
+            Motor_SetDirRight(MOTOR_DIR_FORWARD);
+        }
+        else
+        {
+            Motor_SetDirRight(MOTOR_DIR_BACKWARD);
+        }
+        GPIO_ResetBits(MOTOR_DIR_GPIO_PORT, MOTOR_AIN1_PIN | MOTOR_AIN2_PIN);
+        pin = MOTOR_PWMB_PIN;
+    }
+
+    GPIO_SetBits(MOTOR_PWM_GPIO_PORT, pin);
+    Motor_Enable(1U);
+}
+
+uint8_t Motor_GetPwmGpioLevel(Motor_Index_t motor)
+{
+    uint16_t idr = MOTOR_PWM_GPIO_PORT->IDR;
+    uint16_t pin = (motor == MOTOR_LEFT) ? MOTOR_PWMA_PIN : MOTOR_PWMB_PIN;
+    return ((idr & pin) != 0U) ? 1U : 0U;
+}
+
+uint8_t Motor_GetStbyLevel(void)
+{
+    return ((MOTOR_DIR_GPIO_PORT->IDR & MOTOR_STBY_PIN) != 0U) ? 1U : 0U;
+}
+
+uint8_t Motor_GetDirBits(Motor_Index_t motor)
+{
+    uint16_t idr = MOTOR_DIR_GPIO_PORT->IDR;
+    if (motor == MOTOR_LEFT)
+    {
+        return (uint8_t)(((idr & MOTOR_AIN1_PIN) != 0U ? 2U : 0U) |
+                         ((idr & MOTOR_AIN2_PIN) != 0U ? 1U : 0U));
+    }
+    return (uint8_t)(((idr & MOTOR_BIN1_PIN) != 0U ? 2U : 0U) |
+                     ((idr & MOTOR_BIN2_PIN) != 0U ? 1U : 0U));
+}

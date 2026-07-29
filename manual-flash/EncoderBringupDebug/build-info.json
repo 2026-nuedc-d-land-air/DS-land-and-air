@@ -1,0 +1,11 @@
+{
+  "project": "lidar_car",
+  "target": "STM32F103ZE",
+  "preset": "EncoderBringupDebug",
+  "entry_source": "F:/keil5/stm/ZET6 HAl/lidar_car/Src/main_encoder_bringup.c",
+  "generated_at": "2026-07-28T11:50:54.5767989+08:00",
+  "manual_flash_hex": "F:\\keil5\\stm\\ZET6 HAl\\lidar_car\\manual-flash\\EncoderBringupDebug\\lidar_car.hex",
+  "manual_flash_bin": "F:\\keil5\\stm\\ZET6 HAl\\lidar_car\\manual-flash\\EncoderBringupDebug\\lidar_car.bin",
+  "elf": "F:\\keil5\\stm\\ZET6 HAl\\lidar_car\\manual-flash\\EncoderBringupDebug\\lidar_car.elf",
+  "hex_sha256": "4B1F339B3E1EA3A695D8E733B33CD9B769A1B143C377E7DDC4FDCDB5A39611A3"
+}
