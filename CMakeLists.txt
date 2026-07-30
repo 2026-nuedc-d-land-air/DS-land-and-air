@@ -67,6 +67,7 @@ set(sources_SRCS
 	${CMAKE_CURRENT_SOURCE_DIR}/Library/stm32f10x_rcc.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Library/stm32f10x_gpio.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Library/stm32f10x_tim.c
+	${CMAKE_CURRENT_SOURCE_DIR}/Library/stm32f10x_adc.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Library/stm32f10x_usart.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/bsp_l298n.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/bsp_motor.c
@@ -75,6 +76,7 @@ set(sources_SRCS
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/bsp_diag_uart.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/bsp_robot_uart.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/bsp_gyro_wit.c
+	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/bsp_gray_tracking.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/bsp_motor_safe.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/bsp_mecanum.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/app_ladrc.c
@@ -84,6 +86,7 @@ set(sources_SRCS
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/nano_uart_diag_log.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/motor_diag_log.c
 	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/motor_tb6612_test.c
+	${CMAKE_CURRENT_SOURCE_DIR}/Hardware/app_gray_tracking_test.c
 )
 
 # Include directories for all compilers

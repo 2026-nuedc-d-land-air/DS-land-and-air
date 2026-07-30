@@ -109,6 +109,14 @@
                 "CMAKE_BUILD_TYPE": "Debug",
                 "LIDAR_CAR_MAIN_SOURCE": "${sourceDir}/Src/main_front_tb6612_direct_test.c"
             }
+        },
+        {
+            "name": "GrayTrackingDebug",
+            "inherits": "default",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "LIDAR_CAR_MAIN_SOURCE": "${sourceDir}/Src/main_gray_tracking_test.c"
+            }
         }
     ],
     "buildPresets": [
@@ -156,6 +164,10 @@
         {
             "name": "FrontTb6612DirectTestDebug",
             "configurePreset": "FrontTb6612DirectTestDebug"
+        },
+        {
+            "name": "GrayTrackingDebug",
+            "configurePreset": "GrayTrackingDebug"
         }
     ]
 }

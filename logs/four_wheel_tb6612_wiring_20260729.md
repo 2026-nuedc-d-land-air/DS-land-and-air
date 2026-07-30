@@ -34,9 +34,10 @@ right-rear motor `M+/M-`. If a wheel moves opposite to the required vehicle
 direction, swap that motor's `M+` and `M-` leads or invert only that motor in
 software after the test has established its physical direction.
 
-The competition gray module uses `PC0/PC1/PC2` plus `PG0/PG1`; it has no known
-pin conflict with this rear bench mapping. The four-wheel test image still does
-not initialize gray decoding or line following.
+The competition gray module uses `PC0/PC1/PC2` as `AD0/AD1/AD2` address outputs
+and `PG0` as selected digital `OUT`; `PG1` is unused. It has no known pin conflict
+with this rear bench mapping. The four-wheel test image still does not initialize
+gray decoding or line following.
 
 ## Direction Calibration
 
