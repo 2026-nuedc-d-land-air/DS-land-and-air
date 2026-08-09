@@ -1,0 +1,7 @@
+协议核心测试不依赖 ESP32 或串口硬件，使用 native 环境运行：
+
+    pio test -e native
+
+硬件固件另行构建：
+
+    pio run -e esp32doit-devkit-v1

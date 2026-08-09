@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=D Task V2.3 Ground Station
+Comment=Start the offline receive-first LoRa ground station
+Exec=@EXEC_PATH@ --supervise
+TryExec=@EXEC_PATH@
+Terminal=false
+StartupNotify=false
+X-GNOME-Autostart-enabled=true
