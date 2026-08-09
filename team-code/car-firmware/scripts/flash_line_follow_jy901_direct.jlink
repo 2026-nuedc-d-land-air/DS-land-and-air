@@ -1,0 +1,10 @@
+Device STM32F103ZE
+SelectInterface SWD
+Speed 50
+RSetType 3
+Connect
+Halt
+LoadFile "F:/keil5/stm/ZET6 HAl/lidar_car/build/LineFollowJY901Debug/lidar_car.hex", 0x08000000, noreset
+Reset
+Go
+Exit
