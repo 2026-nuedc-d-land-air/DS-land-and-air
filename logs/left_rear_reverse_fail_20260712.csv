@@ -1,8 +1,0 @@
-# actual_behavior: left rear did not move
-# conclusion: PWM command is present, but PE8 ODR=1 while PE8 IDR=0
-seq,time_ms,event,wheel,cmd,pe_odr,pc_odr,pe_idr,pc_idr,tim5_ccr1,tim5_ccr2,tim3_ccr1,tim3_ccr2
-0,0,2,255,0,0x0000,0x0000,0x607F,0x2FBE,0,0,0,0
-1,0,1,255,0,0x0000,0x0000,0x607F,0x2FBE,0,0,0,0
-2,1000,3,2,-60,0x0100,0x0000,0x607F,0x2FBE,0,0,2160,0
-3,3000,4,2,0,0x0000,0x0000,0x607F,0x2FBE,0,0,0,0
-4,4000,1,255,0,0x0000,0x0000,0x607F,0x2FBE,0,0,0,0

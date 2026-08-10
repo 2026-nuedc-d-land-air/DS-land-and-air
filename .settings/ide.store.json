@@ -1,9 +1,0 @@
-{
-  "device": "STM32F103ZET6",
-  "core": "Cortex-M3",
-  "order": 0,
-  "toolchain": "GCC",
-  "source": {
-    "sourceType": "Empty"
-  }
-}

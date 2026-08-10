@@ -1,5 +1,0 @@
-run_id,source,event,pose,servo_id,target,time_ms,frame,response,observed,pass,notes
-1,BOOT,SAFETY,N/A,N/A,N/A,N/A,N/A,N/A,motors remain off,,
-1,BLUETOOTH,RX,HELP,N/A,N/A,N/A,H,ACK_H,command received,,
-1,SERVO,QUERY,ANGLE,0,N/A,N/A,#000PRAD!,N/A,N/A,,
-1,SERVO,POSE,INITIAL,0,1700,1500,#000P1700T1500!,N/A,N/A,,

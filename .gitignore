@@ -1,2 +1,33 @@
-build
-!.settings
+# Build products and caches
+**/build/
+**/DebugConfig/
+**/Objects/
+**/Listings/
+**/.pio/
+**/__pycache__/
+*.py[cod]
+*.o
+*.obj
+*.d
+*.su
+*.crf
+*.axf
+*.elf
+*.bin
+*.hex
+*.map
+*.srec
+*.engine
+
+# Local IDE and runtime state
+.vscode/
+.settings/
+.as-state/
+*.uvguix*
+*.uvoptx
+**/JLinkLog.txt
+*.log
+
+# Packaged releases and downloaded models
+**/dist/
+*.zip
