@@ -4,7 +4,6 @@
 
 - 主工程：`CMakeLists.txt`、`Hardware/`、`Src/`、`Inc/`、`Library/`、`Start/`、`System/`。
 - 辅助脚本：`scripts/`。
-- 未纳入：构建输出、运行日志、报告工作区、视觉模型、CAD 文件和 IDE 私有状态。
 
 ## 比赛任务实现要点
 
