@@ -30,4 +30,5 @@
 
 # Packaged releases and downloaded models
 **/dist/
+docs/media/videos/*.mp4
 *.zip

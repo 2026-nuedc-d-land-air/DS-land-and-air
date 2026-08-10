@@ -1,0 +1,4 @@
+# Preserve binary evidence verbatim and keep source-review diffs readable.
+*.pdf binary
+*.jpg binary
+*.mp4 binary
