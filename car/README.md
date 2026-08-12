@@ -81,7 +81,7 @@
 PG13 任务一、PG9 任务二、PG12 停车态维护复位；均低有效 
 
 ### 10. 串口调试日志系统
-
+-https://github.com/2026-nuedc-d-land-air/DS-land-and-air/blob/main/docs/D%E9%A2%98_%E8%B5%9B%E9%A2%98%E5%90%88%E8%A7%84%E5%B7%AE%E8%B7%9D%E6%B8%85%E5%8D%95_20260731.md#5-%E8%AF%81%E6%8D%AE%E5%91%BD%E5%90%8D
 
 ## 比赛任务实现要点
 
