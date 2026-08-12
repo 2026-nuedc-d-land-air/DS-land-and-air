@@ -4,19 +4,95 @@
 
 - 主工程：`CMakeLists.txt`、`Hardware/`、`Src/`、`Inc/`、`Library/`、`Start/`、`System/`。
 - 辅助脚本：`scripts/`。
-- 基于 STM32F103ZET6 的八路灰度循迹智能小车，采用串级 PID 闭环控制（灰度循迹ladrc外环 + 速度 PI 内环）与陀螺仪串级，实现稳定循线、弯道自适应减速、陀螺仪姿态以及雷达信息参考限位判断停车，使用hal库。
-- [`引脚图docs/小车pcb原理图展示.pdf`](引脚图docs/小车pcb原理图展示.pdf)
-- [`./docs/D题小车端实施基线.md`](./docs/D题小车端实施基线.md)
+- 基于 STM32F103ZET6 的八路灰度循迹智能小车。当前比赛镜像以灰度为主输入，结合前轮编码器与 JY901 航向辅助；单轮速度内环使用 `SpeedLadrc`，工程使用 STM32 标准外设库。
+- [小车 PCB 原理图](../docs/小车pcb原理图展示.pdf)
+- [D 题小车端实施基线](../docs/D题小车端实施基线.md)
+
+## 当前比赛固件说明（源码优先）
+
+> 本节依据当前 `LineFollowMissionDebug` 源码整理，用于校正本文后续保留的
+> 历史笔记、设计经验和待办项。后文的原始经验**完整保留**，但若与本节、
+> `docs/D题小车端实施基线.md` 或当前接线冲突，应以前三者为准。
+> 本节仅维护小车端；Pi/雷达建图、飞控、MaixCam 与地面站由对应负责人维护。
+
+### 当前入口与控制链路
+
+- 比赛预设为 `LineFollowMissionDebug`；入口是
+  `Src/main_line_follow_mission.c` 与 `Hardware/app_line_follow_mission.c`，
+  不是历史 `User/main.c`。
+- 工程当前使用 STM32 标准外设库（`USE_STDPERIPH_DRIVER`），不应把当前比赛
+  镜像描述为 HAL 工程。
+- 每个 20 ms 控制周期扫描灰度、读取 JY901 与前轮编码器：
+
+  ```text
+  灰度扫描 + JY901 航向/角速度 + 前轮编码器
+      -> app_line_observer（循迹误差、宽线/丢线、航向辅助）
+      -> 目标左右轮速度（任务阶段、里程与安全限速）
+      -> speed_ladrc 单轮速度内环
+      -> 前轮 TB6612；后轮开环跟随
+  ```
+
+- 前轮有编码器速度反馈；后轮目前只是带方向修正和限幅的开环跟随。
+  `TIM4/TIM8` 后轮编码器闭环及方向标定尚未完成，不能写成“四轮闭环已验收”。
+
+### 当前引脚与通信约束
+
+| 功能 | 当前引脚/外设 | 说明 |
+| --- | --- | --- |
+| 灰度扫描 | `PC0/PC1/PC2` 为 `AD0/AD1/AD2`，`PG0` 为 `OUT` | 74HC4051 式地址选通；`000..111` 对应 `X1..X8`，不是 8 路 ADC 或 `PF` 直读。 |
+| 前轮驱动 | `PA2/PA3 TIM2_CH3/CH4`，`PE2..PE6` | 前轮 TB6612，`PE6` 是 STBY，复位/故障时保持低。 |
+| 前轮编码器 | `PA0/PA1 TIM5`，`PA6/PA7 TIM3` | 当前速度反馈、里程门与 A 点接近辅助。 |
+| 后轮驱动 | `PE13/PE14`，`PF1..PF4`，`PB9` | 后轮 TB6612；后轮编码器候选为 `PB6/PB7`、`PC6/PC7`。 |
+| 任务键 | `PG13` / `PG9`，低有效 | 任务一/任务二；运行中再次按下任一键为本地安全停止。 |
+| 维护键 | `PG12`，低有效 | 仅停车态短按执行 MCU 本地维护复位；不能与任务二混用。 |
+| JY901 | USART2 重映射 `PD5/PD6`，9600 8N1 | 航向数据不新鲜时，比赛预设不允许起步。 |
+| Pi 位姿 | UART4 `PC11`，115200 8N1 | 只接收已校准的原生 `FIELD_GLOBAL` 位姿参与协同；旧 `FA...AB` 数据只作显示/诊断。 |
+| LoRa | UART5 `PC12/PD2`，115200 8N1 | 小车端 V2.3 帧；不可同 Pi/Nano 共用。 |
+| 诊断 | USART1 `PA9/PA10`，115200 8N1 | 状态与冻结日志的现场证据入口。 |
+
+灰度白黑极性、`X4|X5` 中心掩码和左右符号应按
+[`../docs/灰度循迹触发测试.md`](../docs/灰度循迹触发测试.md) 的实测记录复核。
+当前预设的小车自有雷达到平台中心前向补偿为 `0 cm`，避免与 Pi/空中端补偿重复；
+不要把历史的固定 `13 cm` 经验直接写入 MCU 参数。
+
+### 当前任务、日志与构建入口
+
+- 在 A 点全黑标志（或允许的稳定中心灰度回退）且 JY901 新鲜时，`PG13`/`PG9`
+  可选择任务一/二。选定后电机至少保持关闭 20 s，随后由小车本地循迹，不等待
+  `FOLLOW` 或地面站启动命令。
+- 起步速度为任务一 `150 mm/s`、任务二 `170 mm/s`。Pi 位姿与无线阶段只影响
+  受限速度阶段，不直接控制电机启停；灰度仍是横向循迹与最终 A 点确认的主依据。
+- 诊断命令：`P` 读取当前参数/状态，`F` 导出最近一次冻结记录，`H` 显示帮助。
+  `P` 或单条 ACK 不能替代赛道通过证据。
+- 构建与烧录：
+
+  ```powershell
+  cmake --preset LineFollowMissionDebug
+  cmake --build --preset LineFollowMissionDebug
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\jlink_flash.ps1 `
+    -Configuration LineFollowMissionDebug -SwdSpeedKhz 50
+  ```
+
+比赛镜像可使用 [`scripts/jlink_flash_line_follow_mission.ps1`](scripts/jlink_flash_line_follow_mission.ps1)
+烧录。当前任务门、速度、丢线和 A 点策略见
+[`../docs/D题小车端实施基线.md`](../docs/D题小车端实施基线.md)。
+
+### 历史内容保留原则
+
+下方“学习经验”、原理图/PCB 过程、材料选择、扩展接口及历史模块记录均保留，
+供复盘和后续硬件迭代使用；其中出现的 `PF1..PF9` 八路直读、`User/main.c`、
+超声波/OLED/旧 PID 参数或未完成扩展，只能视为历史方案或待办，不能当作当前
+`LineFollowMissionDebug` 的接线、控制逻辑或验收结论。
 
 ## 器件材料表
 | 器件 | 型号/规格 | 说明 |
 |------|-----------|------|
 | 主控芯片 | STM32F103ZET6 | Cortex-M3, 72MHz, 512KB Flash, 64K
 
-###传感器模块
+### 传感器模块
 | 器件 | 型号/规格 | 说明 |
 |------|-----------|------|
-| 循迹传感器 | 亚博智能八路灰度传感器（蓝光） | adc PC0 PC1 PC2采样，
+| 循迹传感器 | 亚博智能八路灰度传感器（蓝光） | `PC0/PC1/PC2` 选择通道、`PG0` 读取数字 `OUT`；不是 8 路 ADC 直采。 |
 | 陀螺仪模块 | witt维特智能 jy901b|串口PD5 PD6|
 
 ###雷达系统
@@ -54,111 +130,87 @@
 | 开关| 四脚开关高按键、5.8六脚自锁开关|
 
 ## 功能特性
-###亚博智能八路灰度循迹模块无mcu
--8路灰度循迹模块，adc采样out输出
--非线性权重分布：`{-12, -8, -3, -1, 1, 3, 8, 12}`，边缘传感器权重更大，内侧轮反转提升差速
--传感器值在赛道测试获取，文件数值参考在文件：[`docs/灰度循迹触发测试.md`](docs/灰度循迹触发测试.md)
 
-### 2. ladrc控制内核，串级pid
--**ladrc**：系统参数、速度因子、积分步长、观测器输出、步长系数
-- **外环（循迹 PD）**：根据循迹误差计算转向输出
-  - 非线性 Kp 调度：误差越大比例增益越强（err=0: 1.0x → err=12+: 4.0x）
-  - D 项抑制振荡，防止蛇形走位
-  - 基础参数：Kp=，Kd=
-- **内环（速度 PI）**：确保左右轮精确跟踪目标速度
-  - 位置式 PI 控制，带积分限幅（±200）
-  - 参数：正常速600
-  - 
-### 4. 编码器测速与里程
-- MG513 霍尔编码器，PPR x  减速比 x  倍频 =  脉冲/转
-- 前轮电机 左 PA0/PA1 → TIM5，右 PA6/PA7 → TIM3，硬件正交解码
-- 后轮电机：左PB6/PB7（原串口循迹）->TIM4 ，右 PC6/PC7（原步进）->TIM8
-- 实时输出：转速 RPM、线速度 mm/s、累计距离 mm
-- 左轮方向反转补偿（ENCODER_L_INVERT=1）
+### 1. 八路灰度扫描与循迹观测
 
-### 7. 按键控制与交互
-任务与维护按键
-PG13 任务一、PG9 任务二、PG12 停车态维护复位；均低有效 
+- 八路灰度模块由 `PC0/PC1/PC2` 选择 `X1..X8`，`PG0` 读取被选中的数字输出；它不是 8 路 GPIO 或 ADC 直读。
+- `Hardware/app_line_observer.c` 将灰度掩码、JY901 航向和角速度转换为循迹误差、差速需求，以及正常/宽线/丢线等状态。
+- 白黑极性、中心掩码和车体左右方向必须先按 [`../docs/灰度循迹触发测试.md`](../docs/灰度循迹触发测试.md) 的实测记录确认，不能沿用旧权重或旧 `PF` 引脚表。
 
-### 10. 串口调试日志系统
--[`docs/D题_总体要求与车端验收基线.md`](docs/D题_总体要求与车端验收基线.md)
+### 2. 前轮速度闭环与后轮跟随
+
+- `Hardware/speed_ladrc.c` 为前左、前右轮分别提供速度 LADRC 内环；参数、输出限幅和变化率限制位于 `Hardware/app_line_follow_mission.c`。
+- 前轮编码器为 `TIM5 PA0/PA1` 与 `TIM3 PA6/PA7`，用于速度反馈和累计里程；编码器方向必须先在实车上复核。
+- 前轮 TB6612 使用 `PA2/PA3` PWM、`PE2..PE5` 方向和 `PE6` STBY。后轮 TB6612 是开环跟随，不能误写为后轮闭环控制。
+
+### 3. 按键、本地安全与任务速度
+
+- `PG13`、`PG9` 为低有效的任务一、任务二实体按键；运行中再次按下任一键立即安全停止。
+- `PG12` 为停车态、短按的维护复位键，不能与任务二复用。
+- 任务一/二起步速度分别为 `150/170 mm/s`；接收匹配的合法任务阶段或任务二本地 D 门后才允许进入快速速度包络。无线 ACK 或地面站界面不能直接启停小车。
+- 连续丢线达到 12 s 会安全停机；最终 A 点由里程、回航航向和稳定灰度共同判断，雷达/Pi 只作辅助。
+
+### 4. 诊断与证据
+
+- USART1 (`PA9/PA10`, 115200 8N1) 为现场诊断入口：`P` 读取参数和状态，`F` 导出冻结记录，`H` 显示帮助。
+- `P` 只证明当前镜像配置，`F` 是一轮运行结束时的过程/终止证据；比赛镜像由 [`scripts/jlink_flash_line_follow_mission.ps1`](scripts/jlink_flash_line_follow_mission.ps1) 烧录。
 
 ## 项目结构
-### 1. 功能-文件映射（当前主流程）主控入口与调度：`User/main.c`
-2.循迹功能
-3.雷达串口接收
-4.陀螺仪控制
-5.电机控制
-6.ladrc算法speed_ladrc.c
-7.四轮控制bsp_four_wheel_direction.h
-8.陀螺仪位姿解算bsp_car_pose_link.c
-9.小车循迹逻辑app_line_follow_mission
-……待补充
-表格需要修改到当前对应的文件
-| 模块 | 主要文件 | 关键实现 | 参数/依据 |
-|------|----------|----------|-----------|
-| 循迹采集 | `Hardware/bsp_ir_gpio.c/.h` | `IR_GPIO_Init`、`IR_GPIO_Read` | 
-adc三路控制，out一路输出 |
-| 循迹控制 | `User/main.c` | 加权误差、丢线恢复、交叉抑制、动态 Kp、PD 转向 | 
-`SENSOR_WEIGHTS_V5`、`TRACK_KP/KD` |
-| 速度环 | `User/main.c` | `PI_Init`、`PI_Compute`、目标速度合成、PWM 输出 | 
-`SPEED_KP/KI`、`INTEGRAL_MAX`、`PWM_MAX/MIN` |
-| 电机驱动 | `Hardware/bsp_motor.c/.h` | `Motor_SetSpeedBoth`、方向与PWM映射 | 
-TB6612 管脚与 20kHz PWM |
-| 编码器测速 | `Hardware/bsp_encoder.c/.h` | `Encoder_Init`、`Encoder_Update`、
-`Encoder_GetSpeedMMS` | 11PPR × 20 × 4 倍频、轮径48mm |
-| 超声波避障 | `Hardware/HCSR04.c/.h` + `User/main.c` | `HCSR04_Poll`、
-`HCSR04_StartMeasure`、状态机接管 | `OBS_WARN_CM/OBS_AVOID_CM/OBS_EXIT_CM` |
-| OLED 显示 | `Hardware/OLED.c/.h` + `User/main.c` | `OLED_ShowString` 分帧刷新
-双页面显示 | `DISPLAY_PAGES=2`，按状态切页 |
-| 按键输入 | `Hardware/bsp_key.c/.h`、`bsp_key2.c/.h` | `Key_Scan`、
-`Key2_GetEvent` | C5短/长按与 C4 事件分离 |
-| LED 指示 | `Hardware/bsp_led_pwm.c/.h` | `LED_PWM_Init`、`LED_SetBrightness`
-`LED_StartFinishEffect` | 待机4档亮度、终点灯效 |
-| 蜂鸣器 | `Hardware/bsp_buzzer.c/.h` | `Buzzer_PlayBeep`、`Buzzer_BeepTriple`
-`Buzzer_Update` | 启动/激活/急停/终点提示 |
-| 串口日志 | `User/main.c` + `Hardware/bsp_usart.c/.h` | `Log_Add`、`Log_Start/
-Stop`、`Log_Export`、`UART4_Send_String` | `LOG_ENABLE`、`LOG_PERIOD_MS`、
-`LOG_MAX_ENTRIES` |
+
+| 模块 | 主要文件 | 当前职责 |
+| --- | --- | --- |
+| 比赛入口 | `Src/main_line_follow_mission.c` | 安全上电、1 ms SysTick、诊断串口和任务主循环。 |
+| 任务状态机 | `Hardware/app_line_follow_mission.c/.h` | 按键、起步延时、循迹状态、里程/航向门、停机、冻结记录和小车端无线帧。 |
+| 灰度采集与观测 | `Hardware/bsp_gray_tracking.c/.h`、`Hardware/app_line_observer.c/.h` | 八路选通扫描、灰度误差、丢线/宽线与 JY901 航向辅助。 |
+| 前轮执行与反馈 | `Hardware/bsp_motor.c/.h`、`Hardware/bsp_encoder.c/.h`、`Hardware/speed_ladrc.c/.h` | 前轮 TB6612、编码器、单轮速度 LADRC。 |
+| 后轮跟随 | `Hardware/bsp_aux_tb6612.c/.h`、`Hardware/bsp_four_wheel_direction.h` | 后轮开环输出与物理正向符号。 |
+| JY901 与 Pi 位姿 | `Hardware/bsp_gyro_wit.c/.h`、`Hardware/bsp_car_pose_link.c/.h` | 航向解析、UART4 位姿接收与校准状态。 |
+| LoRa 协议 | `Hardware/bsp_robot_uart.c/.h`、`Hardware/bsp_v22_protocol.c/.h` | UART5 收发、CRC/地址检查和小车端 V2.3 帧。 |
+| 诊断与安全 | `Hardware/bsp_diag_uart.c/.h`、`Hardware/bsp_motor_safe.c/.h` | 串口文本日志、上电和故障安全断使能。 |
+
+独立灰度、前后驱动、LoRa 等预设保留在 `CMakePresets.json`，用于分项台架验证；比赛现场应使用 `LineFollowMissionDebug`。
 
 ## 任务执行拆解
--小车执行任务一和任务二。启动后，进行延时20s，等待飞机起飞。初始在a-b段以规定速度慢速行驶，与飞机协同以及完成投掷/降落的联调任务。
--执行之后，无人机切换返航模式，按照通信协议lora发送切换信号，小车接收通信信号之后，开始恢复正常速度加速行驶。
--小车落入编码器范围，以及雷达辅助半径范围内，被限制减速，缓慢靠近a点，在a点附近接受雷达辅助，陀螺仪yaw角归0辅助停车，编码器8800mm后解放，以及主要的灰度循迹低延时触发全黑停车
-### 联调启动
--无人机以及小车启动雷达，相机启动代码。将小车和无人机的雷达重合，在地面站进行手动校准，三端信息握手成功才能完成校准。校准后具体实现在飞机伴飞和执行任务，小车每次启动可以点击重置按键执行重置。
-地面站会实时显示小车和无人机的坐标和图标，视觉识别代码在maixcam2烧录，上电自启动。
-### 2.1 重点文件补充说明
--循迹差速是外侧两轮速度相同，内侧两轮速度相同，内外侧做差速。
--雷达只做位置信息参考，雷达建图需要接入imu。雷达py启动以及建图文件为:
--树莓派雷达独立供电，需要ldo 5v拓展坞？dc-dc 5v供电无法供给雷达启动
--灰度循迹的采样信息为：  可以作为参考以及确认初始化
--小车雷达位置放在车头，小车中点距离雷达坐标存在13cm左右误差。协调好处理误差的单位，当前小车存在13cm内部误差处理，我认为这个误差导致验收时无人机返回起点有误差。伴飞小车发送自己雷达坐标，外部无人机接受坐标后同时处理小车和无人机起点存在的误差。坐标方向在无人机方处理，进行取反矫正。
+- 小车只负责实体按键启动、本地循迹、本地安全停机、车端位姿/任务帧和受限速度调整；飞控、视觉、地面站的具体实现不在本目录维护。
+- A 点满足灰度和 JY901 起步条件后，按下 `PG13` 或 `PG9` 选择任务。电机至少等待 20 s 后由小车本地开始循迹，不等待远端 `FOLLOW`。
+- Pi 位姿可提供校准标识、坐标显示和 A/B 接近辅助。它不进入横向循迹，也不能独立让小车启动或停机。
+- 小车仅接受任务号和类型匹配的阶段信息来解锁受限速度；任务一与任务二的解锁条件、D 门和 A 点减速门以 [`../docs/D题小车端实施基线.md`](../docs/D题小车端实施基线.md) 为准。
+- 回到 A 点时，先由编码器路程和回航航向进入接近速度，最终仍需稳定灰度确认；不能用单个雷达半径或单个黑点代替最终停机条件。
 
-### 3. 参数集中位置（调参入口）
-需要改正到我们的参数：
-当前版本参数集中在 `User/main.c` 顶部宏区，便于赛道调参：
+### 联调启动（小车端）
 
-- **速度环参数**：`SPEED_KP`、`SPEED_KI`、`INTEGRAL_MAX`
-- **ladrc观测器参数**：
-- **循迹控制参数**：`TRACK_KP`、`TRACK_KD`
-- **速度边界**：`MIN_SPEED_MMS`180速、`MAX_SPEED_MM 600速
-- **避障阈值**：`OBS_WARN_CM`、`OBS_AVOID_CM`、`OBS_EXIT_CM`
-- **日志参数**：`LOG_ENABLE`、`LOG_PERIOD_MS`、`LOG_MAX_ENTRIES`
-- **寻线参数**：失线寻线，持续12s（可以扩展到30s）
-- 
+1. 烧录 `LineFollowMissionDebug`，使用 `P` 核对当前镜像参数、任务键和安全状态；
+2. 按灰度测试文档核对 `X1..X8`、白黑极性和左右方向，再核对前轮正向与编码器符号；
+3. 在单车低速运行正常并保存 `F` 后，再与 Pi/空中端按同一任务身份进行协议联调；
+4. 每一轮保存车端完整串口输出。空中端、Pi/雷达和地面站的原始日志由各自负责人保存，界面截图不能替代日志。
+
+### 参数集中位置（调参入口）
+
+当前比赛参数位于 `Hardware/app_line_follow_mission.c`，少数构建期参数由 `CMakePresets.json` 的 `LineFollowMissionDebug` 传入：
+
+| 参数组 | 当前宏/变量 | 调整边界 |
+| --- | --- | --- |
+| 任务起步 | `LINE_TASK1_COOP_SPEED_MM_S`、`LINE_TASK2_COOP_SPEED_MM_S` | 当前为 `150/170 mm/s`；先验证 A→B 时间和循迹稳定性。 |
+| 速度 LADRC | `LINE_SPEED_B0`、`LINE_SPEED_WC`、`LINE_SPEED_WO`、`LINE_SPEED_OUT_*` | 仅在编码器方向和前轮正向已确认后调整。 |
+| 快速速度包络 | `LINE_POST_COORD_*_SPEED_MM_S` | 逐段验证直线、弯道、宽线和丢线行为后再提高。 |
+| 丢线恢复 | `LINE_LOST_*` | 当前安全超时为 `LINE_LOST_TIMEOUT_MS = 12000`；修改后必须查看冻结记录。 |
+| A 点与任务门 | `LINE_A_RETURN_*`、`LINE_D_*` | 不能只靠雷达半径或远端 ACK 改写本地停车逻辑。 |
+| 后轮跟随 | `LINE_REAR_*` | 后轮仍为开环跟随，调整前先复核四轮物理正向。 |
+
 ## 比赛任务实现要点
 
 - 使用灰度循迹传感器的实测灰度/映射进行线路判断；编码器辅助速度与停车距离控制。
 - 雷达距离和陀螺仪 yaw 用作循迹偏差、弯道和回到起始点的限位辅助，降低越过 A 点后不能停车的风险。
 - 接收飞机任务阶段中的伴随、降落/停机等协同信息，在满足阶段条件时提速；临近 A 点重新降速并执行停车保护，以缩短任务用时而不牺牲终点约束。
 
-## 小车实际使用引脚使用
--[`docs/贡献与硬件索引.md`](docs/贡献与硬件索引.md)
+## 小车实际使用引脚
 
-### 10. 串口调试日志系统
--冻结日志，
-## 用于原理图绘制的小车引脚规划（ZET6可用引脚分配）
+当前比赛引脚以本文“当前引脚与通信约束”和 [`../docs/D题小车端实施基线.md`](../docs/D题小车端实施基线.md) 为准。冻结日志通过 USART1 导出，原始输出应随每轮测试单独保存；归档源码不包含现场运行日志。
+
+## 历史/PCB 规划引脚记录
+
+> 下表保留原始原理图和扩展规划，便于硬件复盘。它包含未接入比赛镜像的 OLED、超声波、云台和备用接口，不能替代当前比赛引脚表。
+
 UART串口对 | 复用 已经定死：				
 T1 PA9 PA10 （串口usb） 备用：PB6 PB7（映射 循迹串口）
 T2 PA2 PA3 （电机PWM）备用：PD5 PD6 （映射 陀螺仪）
@@ -754,6 +806,3 @@ PCB 阶段能暴露：
 
 ## 附，建议加入团队，在好的团队里面，我学到非常多有用的知识，补充了很多有用的硬件知识，电池使用，测量还有关于协作思考还有沟通。在一个好的团队里面，无疑是收益匪浅的，我能学到从ai里面很难学习到的知识，或者是永远得不到的部分。
 有目标就一直做，水到一定会渠成，我做过的很多东西，已经来到当前，作为帮助我的力量。
-
-
-
