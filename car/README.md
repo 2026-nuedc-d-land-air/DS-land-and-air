@@ -20,8 +20,7 @@
 - 比赛预设为 `LineFollowMissionDebug`；入口是
   `Src/main_line_follow_mission.c` 与 `Hardware/app_line_follow_mission.c`，
   不是历史 `User/main.c`。
-- 工程当前使用 STM32 标准外设库（`USE_STDPERIPH_DRIVER`），不应把当前比赛
-  镜像描述为 HAL 工程。
+- 工程当前使用 STM32 标准外设库（`USE_STDPERIPH_DRIVER`）。
 - 每个 20 ms 控制周期扫描灰度、读取 JY901 与前轮编码器：
 
   ```text
