@@ -12,8 +12,6 @@
 
 <p align="center">
   <img src="../docs/media/images/小车图片.jpg" alt="搭载 STM32、雷达/Pi、电池和四轮底盘的小车平台" width="31%" />
-  <img src="../docs/media/images/无人机图片.jpg" alt="搭载飞控、传感器与任务执行机构的多旋翼飞行器" width="31%" />
-  <img src="../docs/media/images/地面站图片.jpg" alt="显示地图、坐标和任务状态的树莓派地面站" width="31%" />
 </p>
 
 <p align="center">小车平台　·　多旋翼飞行器　·　树莓派地面站</p>
