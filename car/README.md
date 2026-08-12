@@ -84,7 +84,7 @@ PG13 任务一、PG9 任务二、PG12 停车态维护复位；均低有效
 -[`docs/D题_总体要求与车端验收基线.md`](docs/D题_总体要求与车端验收基线.md)
 
 ## 项目结构
-### 1. 主控入口与调度：`User/main.c`
+### 1. 功能-文件映射（当前主流程）主控入口与调度：`User/main.c`
 2.循迹功能
 3.雷达串口接收
 4.陀螺仪控制
@@ -94,8 +94,43 @@ PG13 任务一、PG9 任务二、PG12 停车态维护复位；均低有效
 8.陀螺仪位姿解算bsp_car_pose_link.c
 9.小车循迹逻辑app_line_follow_mission
 ……待补充
+表格需要修改到当前对应的文件
+| 模块 | 主要文件 | 关键实现 | 参数/依据 |
+|------|----------|----------|-----------|
+| 循迹采集 | `Hardware/bsp_ir_gpio.c/.h` | `IR_GPIO_Init`、`IR_GPIO_Read` | 
+adc三路控制，out一路输出 |
+| 循迹控制 | `User/main.c` | 加权误差、丢线恢复、交叉抑制、动态 Kp、PD 转向 | 
+`SENSOR_WEIGHTS_V5`、`TRACK_KP/KD` |
+| 速度环 | `User/main.c` | `PI_Init`、`PI_Compute`、目标速度合成、PWM 输出 | 
+`SPEED_KP/KI`、`INTEGRAL_MAX`、`PWM_MAX/MIN` |
+| 电机驱动 | `Hardware/bsp_motor.c/.h` | `Motor_SetSpeedBoth`、方向与PWM映射 | 
+TB6612 管脚与 20kHz PWM |
+| 编码器测速 | `Hardware/bsp_encoder.c/.h` | `Encoder_Init`、`Encoder_Update`、
+`Encoder_GetSpeedMMS` | 11PPR × 20 × 4 倍频、轮径48mm |
+| 超声波避障 | `Hardware/HCSR04.c/.h` + `User/main.c` | `HCSR04_Poll`、
+`HCSR04_StartMeasure`、状态机接管 | `OBS_WARN_CM/OBS_AVOID_CM/OBS_EXIT_CM` |
+| OLED 显示 | `Hardware/OLED.c/.h` + `User/main.c` | `OLED_ShowString` 分帧刷新
+双页面显示 | `DISPLAY_PAGES=2`，按状态切页 |
+| 按键输入 | `Hardware/bsp_key.c/.h`、`bsp_key2.c/.h` | `Key_Scan`、
+`Key2_GetEvent` | C5短/长按与 C4 事件分离 |
+| LED 指示 | `Hardware/bsp_led_pwm.c/.h` | `LED_PWM_Init`、`LED_SetBrightness`
+`LED_StartFinishEffect` | 待机4档亮度、终点灯效 |
+| 蜂鸣器 | `Hardware/bsp_buzzer.c/.h` | `Buzzer_PlayBeep`、`Buzzer_BeepTriple`
+`Buzzer_Update` | 启动/激活/急停/终点提示 |
+| 串口日志 | `User/main.c` + `Hardware/bsp_usart.c/.h` | `Log_Add`、`Log_Start/
+Stop`、`Log_Export`、`UART4_Send_String` | `LOG_ENABLE`、`LOG_PERIOD_MS`、
+`LOG_MAX_ENTRIES` |
+
 ## 任务执行拆解
-小车执行任务一和任务二。启动后，进行延时20s，等待飞机起飞。初始在a-b段以规定速度慢速行驶，与飞机协同以及完成投掷/降落的联调任务
+-小车执行任务一和任务二。启动后，进行延时20s，等待飞机起飞。初始在a-b段以规定速度慢速行驶，与飞机协同以及完成投掷/降落的联调任务。
+-执行之后，无人机切换返航模式，按照通信协议lora发送切换信号，小车接收通信信号之后，开始恢复正常速度加速行驶。
+-小车落入编码器范围，以及雷达辅助半径范围内，被限制减速，缓慢靠近a点，在a点附近接受雷达辅助，陀螺仪yaw角归0辅助停车，编码器8800mm后解放，以及主要的灰度循迹低延时触发全黑停车
+
+### 2.1 重点文件补充说明
+-循迹差速是外侧两轮速度相同，内侧两轮速度相同，内外侧做差速。
+-雷达只做位置信息参考，雷达建图需要接入imu。雷达py启动以及建图文件为:
+-树莓派雷达独立供电，需要ldo 5v拓展坞？dc-dc 5v供电无法供给雷达启动
+-灰度循迹的采样信息为：  可以作为参考以及确认初始化
 
 ## 比赛任务实现要点
 
