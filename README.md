@@ -2,6 +2,20 @@
 
 > 省级一等奖项目。仓库仅保留可编辑的比赛源码、必要协议资料与可核查的测试文档；构建产物、运行缓存、双臂小车 CAD 与无关 YOLOv5 工程不纳入。
 
+## 实物展示
+
+| 小车 | 无人机 |
+| :---: | :---: |
+| <img src="docs/media/images/小车图片.jpg" alt="小车实物照片" width="420"> | <img src="docs/media/images/无人机图片.jpg" alt="无人机实物照片" width="420"> |
+
+### 现场视频截图
+
+点击截图可打开对应的原视频附件；时间为原视频内的近似位置。
+
+| 任务一 · 约 00:21 | 任务二 · 约 00:26 |
+| :---: | :---: |
+| [<img src="docs/media/images/task-1-21s.jpg" alt="任务一现场测试视频约21秒处的截图" width="420">](https://github.com/2026-nuedc-d-land-air/DS-land-and-air/releases/download/d-task-field-videos-2026-08-13/d-task-one-field-test.mp4) | [<img src="docs/media/images/task-2-26s.jpg" alt="任务二现场测试视频约26秒处的截图" width="420">](https://github.com/2026-nuedc-d-land-air/DS-land-and-air/releases/download/d-task-field-videos-2026-08-13/d-task-two-field-test.mp4) |
+
 ## 项目组成
 
 | 目录 | 职责 | 核心实现 |
