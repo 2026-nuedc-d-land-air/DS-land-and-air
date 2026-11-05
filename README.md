@@ -2,18 +2,6 @@
 
 > 省级一等奖项目。比赛源码、项目资料与现场证据归档。
 
-## 获奖证书
-
-**2026 年全国大学生电子设计竞赛模拟电子系统设计专题赛（TI 杯）· 广西赛区本科组一等奖**
-
-<p align="center">
-  <a href="docs/awards/2026-ti-cup-guangxi-first-prize.jpg">
-    <img src="docs/awards/2026-ti-cup-guangxi-first-prize.jpg" alt="2026年TI杯模拟电子系统设计专题赛广西赛区本科组一等奖证书" width="720">
-  </a>
-  <br>
-  <sub>2026 年 8 月 · 点击查看证书原图</sub>
-</p>
-
 ## 实物展示
 
 | 小车 | 无人机 |
@@ -58,6 +46,18 @@
 
 现场照片、PCB 原理图、引脚对照和任务视频证据索引见
 [`docs/贡献与硬件索引.md`](docs/贡献与硬件索引.md)。视频原件采用发布附件或 LFS 管理，避免普通 Git 历史膨胀。
+
+## 获奖证书
+
+**2026 年全国大学生电子设计竞赛模拟电子系统设计专题赛（TI 杯）· 广西赛区本科组一等奖**
+
+<p align="center">
+  <a href="docs/awards/2026-ti-cup-guangxi-first-prize.jpg">
+    <img src="docs/awards/2026-ti-cup-guangxi-first-prize.jpg" alt="2026年TI杯模拟电子系统设计专题赛广西赛区本科组一等奖证书" width="720">
+  </a>
+  <br>
+  <sub>2026 年 8 月 · 点击查看证书原图</sub>
+</p>
 
 ## 社区致谢
 
