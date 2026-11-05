@@ -1,6 +1,19 @@
 # 2026 电赛 D 题：陆空无人系统协同
 
-> 省级一等奖项目。仓库仅保留可编辑的比赛源码
+> 省级一等奖项目。比赛源码、项目资料与现场证据归档。
+
+## 获奖证书
+
+**2026 年全国大学生电子设计竞赛模拟电子系统设计专题赛（TI 杯）· 广西赛区本科组一等奖**
+
+<p align="center">
+  <a href="docs/awards/2026-ti-cup-guangxi-first-prize.jpg">
+    <img src="docs/awards/2026-ti-cup-guangxi-first-prize.jpg" alt="2026年TI杯模拟电子系统设计专题赛广西赛区本科组一等奖证书" width="720">
+  </a>
+  <br>
+  <sub>2026 年 8 月 · 点击查看证书原图</sub>
+</p>
+
 ## 实物展示
 
 | 小车 | 无人机 |
